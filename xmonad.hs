@@ -1,215 +1,145 @@
-import System.IO
-import qualified System.IO.UTF8
-import Control.Monad (when)
-import System.Environment (getArgs)
+import Data.Monoid
+import Data.Ratio ((%))
+import qualified Data.Map as M
 import XMonad
-import XMonad.Hooks.DynamicLog
+import XMonad.ManageHook
+import qualified XMonad.StackSet as W
+
+import XMonad.Actions.CycleWS
+import XMonad.Actions.DynamicWorkspaces
+import qualified XMonad.Actions.FlexibleManipulate as Flex
+import XMonad.Actions.FloatSnap
+import XMonad.Config.Desktop
+import XMonad.Config.Kde
 import XMonad.Hooks.ManageDocks
 import XMonad.Hooks.ManageHelpers
-import XMonad.Hooks.UrgencyHook
+import XMonad.Hooks.Minimize
 import XMonad.Hooks.SetWMName
-import XMonad.Util.Run
-import XMonad.Util.Replace
-import Data.Ratio ((%))
-import qualified XMonad.StackSet as S
-import XMonad.Util.EZConfig
-import XMonad.Hooks.ICCCMFocus
-import XMonad.Prompt
-import XMonad.Prompt.Shell
-import XMonad.Hooks.EwmhDesktops
-
--- layouts
-import XMonad.Layout.NoBorders
-import XMonad.Layout.ResizableTile
-import XMonad.Layout.Reflect
-import XMonad.Layout.IM
-import XMonad.Layout.Tabbed
-import XMonad.Layout.PerWorkspace (onWorkspace)
+import XMonad.Layout.Fullscreen
 import XMonad.Layout.Grid
+import XMonad.Layout.IM
+import XMonad.Layout.Maximize
+import XMonad.Layout.Minimize
+import XMonad.Layout.NoBorders
+import XMonad.Layout.PerWorkspace
+import XMonad.Layout.Reflect
+import XMonad.Util.EZConfig
+import XMonad.Util.NamedScratchpad
 
---------------------------------
---		STUFF
---------------------------------
+myTerminal          = "urxvtc"
+myFocusFollowsMouse = True
+myModMask           = mod4Mask
+myBorderWidth       = 2
+myWorkspaces        = ["1:www","2:im","3:misc"] ++ map show [4..9]
+myNormalBorderColor  = "#aaaaaa"
+myFocusedBorderColor = "#ff0000"
+myCompton = "sleep 2; compton -b -f --backend glx --blur-background --vsync opengl --glx-use-gpushader4 -D 4 --sw-opti -e 0.7 -m 0.8 -G"
 
-withSpawnedPipe cmd f = do
-    pipe <- spawnPipe cmd
-    f pipe
-    hClose pipe
+myConsoleScratchpads = 
+    [ (xK_F1, "term1", "fish")
+    , (xK_F2, "term2", "fish")
+    , (xK_F3, "top", "htop")
+    , (xK_F4, "mpd", "ncmpcpp")
+    ]
 
-myRubyHack = "/home/hake5/.xmonad/struts.rb"
+-- TODO: more meta scratchpads like consoles
+scratchpads = [NS "choqok" "choqok" (appName =? "choqok") floatingConf]
+    ++ [NS name (myTerminal ++ " -name " ++ name ++ " -e " ++ command) (appName =? name) floatingConf | (_,name,command) <- myConsoleScratchpads]
+        where
+            floatingConf = customFloating $ W.RationalRect (1/24) (1/24) (11/12) (11/12)
 
-main = do
-    --dzenTitleBarPipe  <- spawnPipe myDzenTitleBar
-    --withSpawnedPipe myDzenTitleBar $ \ dzenTitleBarPipe -> do
-    --dzenStatusBarPipe <- spawnPipe myDzenStatusBar
-    --withSpawnedPipe myDzenStatusBar $ \ dzenStatusBarPipe -> do
-    --dzenMusicBarPipe  <- spawnPipe myDzenMusicBar
-    --withSpawnedPipe myDzenMusicBar $ \ dzenMusicBarPipe -> do
-    --spawn myTray
-    args <- getArgs
-    when ("--replace" `elem` args) replace
-    withSpawnedPipe myRubyHack $ \ dzenTitleBarPipe -> do
-
-    xmonad $ withUrgencyHook NoUrgencyHook $ defaultConfig
-        { terminal 				= myTerminal
-        , modMask  				= myModMask
-        , borderWidth			= myBorderWidth
-        , startupHook 			= myStartupHook
-        , layoutHook 			= myLayout
-        , logHook 				= myLogHook dzenTitleBarPipe
-        , manageHook 			= myManageHook <+> manageHook defaultConfig
-        , normalBorderColor 	= myNormalBorderColor
-        , focusedBorderColor 	= myFocusedBorderColor
-        , focusFollowsMouse		= myFocusFollowsMouse
-        , workspaces			= myWorkspaces
-        , handleEventHook			= fullscreenEventHook
-        }
-
-        `removeKeys`
-            [(myModMask, xK_p)] -- ++
-            --[((m .|. myModMask, k), windows $ f i) | (i, k) <- zip myWorkspaces [xK_1 .. xK_9]]
-
-        `additionalKeys`
-            ([((myModMask, xK_p), shellPrompt myXPConfig)] ++
-             [((myModMask, xK_z), spawn "xscreensaver-command -lock & xset dpms force off")] ++
-             [((myModMask, xK_z), spawn "sudo pm-suspend")] ++
-             [((myModMask, xK_b), spawn "firefox")] ++
-             [((myModMask, xK_o), restart "/home/hake5/ob" True)] ++
-             [((myModMask .|. shiftMask, xK_F12), spawn "sudo pm-hibernate")] ++
-                [((m .|. myModMask, k), windows $ f i)
-                | (i, k) <- zip myWorkspaces [xK_1 .. xK_9],
-                  (f, m) <- [(S.view, 0), (S.shift, shiftMask)]] ++
-            [((controlMask .|. myModMask, k), windows $ S.greedyView i)
-                | (i, k) <- zip myWorkspaces [xK_1 .. xK_9]])
-
-	`additionalKeysP`
-	    (
-	    [ ("<XF86Sleep>", spawn "xscreensaver-command -lock & sudo pm-suspend")
-	    , ("<XF86PowerDown>", spawn "sudo pm-hibernate")
-	    , ("<XF86ScreenSaver>", spawn "xset dpms force off")
-	    , ("<XF86AudioPlay>", spawn "mpc toggle")
-	    , ("<XF86AudioStop>", spawn "mpc stop")
-	    , ("<XF86AudioNext>", spawn "mpc next")
-	    , ("<XF86AudioPrev>", spawn "mpc prev")
-	    , ("<XF86AudioRaiseVolume>", spawn "amixer -c 0 -q sset Master 1+ unmute")
-	    , ("<XF86AudioLowerVolume>", spawn "amixer -c 0 -q sset Master 1- unmute")
-	    , ("<XF86AudioMute>", spawn "amixer -c 0 sset Master toggle")
-
-	    ])
-
----------------------------------
---		CONSTANTS
----------------------------------i
+myLayoutMods x = fullscreenFull $ desktopLayoutModifiers $ lessBorders OnlyFloat $ maximize $ minimize x
+myLayout = onWorkspace "2:im" imLayout $ tile
+    where
+        tile = myLayoutMods $  Tall nmaster delta ratio
+        nmaster = 1
+        ratio   = 3/4
+        delta   = 4/100
+        imLayout = myLayoutMods $ reflectHoriz $ withIM (5%20) (Role "buddy_list") Grid
+ 
+myManageHook = fullscreenManageHook <+> namedScratchpadManageHook scratchpads 
+    <+> composeAll
+        [ className =? "Pidgin"             --> doShift "2:im"
+        , className =? "Firefox"            --> doShift "1:www"
+        , className =? "Xmessage"           --> doFloat
+        , className =? "plasma"             --> doFloat
+        , className =? "Plasma"             --> doFloat
+        , className =? "plasma-desktop"     --> doFloat
+        , className =? "Plasma-desktop"     --> doFloat
+        , className =? "krunner"            --> doFloat
+        , className =? "Klipper"            --> doFloat
+        , className =? "Knotes"             --> doFloat
+        , appName   =? "desktop_window"     --> doIgnore
+        , appName   =? "kdesktop"           --> doIgnore
+        , isDialog                          --> doCenterFloat
+        , isKDETrayWindow                   --> doIgnore
+        ]
+ 
+myEventHook = minimizeEventHook <+> fullscreenEventHook
 
 myStartupHook = do
-    takeTopFocus
-    --spawn "urxvt -T weechat -e weechat-curses" -- --> doShift "1:irc"
-    spawn "urxvt -T ncmpcpp -e ncmpcpp" -- --> doShift "9:mp3"
-    --spawn "firefox"
-    spawn "pidgin"
-    spawn "urxvt -T URxvtConsole"
+    spawn "if [ $(ps aux | grep -e 'compton$' | grep -v grep | wc -l | tr -s \"\n\") -eq 0 ]; then killall compton; fi"
     setWMName "LG3D"
+    let ifRunningWrap command = "if [ $(ps aux | grep -e '" ++ command ++ "$' | grep -v grep | wc -l | tr -s \"\n\") -eq 0 ]; then " ++ command ++ "; fi"
+    spawn $ ifRunningWrap "urxvtd"
+    spawn $ ifRunningWrap "pidgin"
+    spawn myCompton
+    spawn "fishd"
+        
+myMouseBindings (XConfig {XMonad.modMask = modm}) = M.fromList $
+    [ ((modm,               button1), \w -> focus w >> windows W.shiftMaster >> mouseMoveWindow w >> snapMagicMove (Just 50) (Just 50) w)
+    , ((modm,               button2), \w -> focus w >> snapMagicMouseResize 50 Nothing Nothing w)
+    , ((modm,               button3), \w -> focus w >> Flex.mouseWindow Flex.resize w >> snapMagicMouseResize 50 (Just 50) (Just 50) w)
+    , ((modm,               button4), \_ -> nextWS)
+    -- , ((modm .|. shiftMask, button4), \_ -> windows $ W.swapUp) -- TODO: Fix NSP
+    , ((modm,               button5), \_ -> prevWS)
+    -- , ((modm .|. shiftMask, button5), \_ -> windows $ W.swapDown) -- TODO: Fix NSP
+    ]
 
-myTerminal		 		= "urxvt"
-myModMask 		 		= mod4Mask
-myBorderWidth	 		= 2
-myWorkspaces 			= ["1:irc", "2:im", "3:www", "4:dev1", "5:dev2", "6:doc", "7:misc", "8:vid", "9:mp3"]
-myFocusFollowsMouse 	= True
-myFont					= "-*-dejavu sans mono-medium-r-*-*-10-*-*-*-*-*-iso8859-*"
-myImgDirectory			= ".dzen/bitmaps/"
+main = xmonad $ kde4Config {
+        terminal           = myTerminal,
+        focusFollowsMouse  = myFocusFollowsMouse,
+        borderWidth        = myBorderWidth,
+        modMask            = myModMask,
+        workspaces         = myWorkspaces,
+        normalBorderColor  = myNormalBorderColor,
+        focusedBorderColor = myFocusedBorderColor,
+        mouseBindings      = myMouseBindings,
+        layoutHook         = myLayout,
+        manageHook         = manageDocks <+> myManageHook <+> manageHook kde4Config,
+        handleEventHook    = myEventHook <+> handleEventHook kde4Config,
+        startupHook        = myStartupHook
+    }
 
----------------------------------
---		COLORS
---------------------------------
+    `removeKeys`
+        [ (myModMask .|. shiftMask, xK_w     )
+        , (myModMask .|. shiftMask, xK_e     )
+        , (myModMask .|. shiftMask, xK_q     )
+        , (myModMask              , xK_Tab   )
+        ]
 
-myBarColor				  = "#111111"
-myBarTextColor			  = "#babdb6"
-myBarInactiveTextColor    = "#555753"
-myNormalBorderColor 	  = "#555753"
-myFocusedBorderColor 	  = "#a40000"
-myCurrentWorkspaceColor   = "#73d216"
-myDefaultBarColor 		  = "#555753"
-myUrgentWorkspaceColor    = "#edd400"
+    `additionalKeys` (
+        [ ((myModMask              , xK_q     ), spawn "xmonad --recompile && xmonad --restart")
+        , ((myModMask              , xK_m     ), withFocused minimizeWindow)
+        , ((myModMask .|. shiftMask, xK_m     ), sendMessage RestoreNextMinimizedWin)
+        , ((myModMask              , xK_f     ), withFocused (sendMessage . maximizeRestore))
+        , ((myModMask              , xK_w     ), nextScreen)
+        , ((myModMask .|. shiftMask, xK_w     ), swapNextScreen)
+        , ((myModMask .|. shiftMask, xK_e     ), shiftTo Next EmptyWS)
+        , ((myModMask              , xK_e     ), moveTo Next EmptyWS)
+        , ((myModMask              , xK_Tab   ), toggleWS)
+        , ((myModMask              , xK_b     ), spawn "firefox")
+        , ((myModMask              , xK_x     ), spawn "/usr/lib/kde4/libexec/kscreenlocker_greet --immediateLock")
+        , ((myModMask              , xK_r), spawn "xprop > ~/test.txt") -- debugging stuff remove later
+        , ((myModMask              , xK_F5), namedScratchpadAction scratchpads "choqok")
+        ] ++ [((myModMask, key), namedScratchpadAction scratchpads name) | (key,name,_) <- myConsoleScratchpads]
+          ++ [((m .|. myModMask, k), windows $ f i) | (i, k) <- zip myWorkspaces [xK_1 .. xK_9], (f, m) <- [(W.view, 0), (W.shift, shiftMask)]]
+          ++ [((controlMask .|. myModMask, k), windows $ W.greedyView i) | (i, k) <- zip myWorkspaces [xK_1 .. xK_9]]
+    )
 
-myXPConfig = defaultXPConfig
-    {
-		font = myFont,
-		fgColor = myBarInactiveTextColor,
-		bgColor = myBarColor,
-		bgHLight    = myBarColor,
-		fgHLight    = myBarTextColor,
-		position = Top,
-		historySize = 512,
-		showCompletionOnTab = True,
-		historyFilter = deleteConsecutive,
-		promptBorderWidth = 0,
-		height = 16
-	}
-
---myLayout = avoidStruts(tiled ||| Mirror tiled ||| Full) ||| Full
-myLayout = onWorkspace "8:vid" videoLayout $ smartBorders (onWorkspace "2:im" imLayout $ standardLayouts)
-
-	where
-		standardLayouts = avoidStruts(tiled ||| Mirror tiled ||| Full) ||| noBorders Full
-			where
-    			tiled   = Tall nmaster delta ratio
-    			nmaster = 1
-    			ratio   = 3/4
-    			delta   = 3/100
-
-		videoLayout = noBorders Full ||| avoidStruts(noBorders Full)
-
-		--imLayout = avoidStruts(reflectHoriz $ withIM (5%20) (Title ("Kadu: " ++ myGGNum)) Grid)
-		imLayout = avoidStruts(smartBorders (reflectHoriz $ withIM (6%20) (Role "buddy_list") Grid))
-
-myLogHook pipe = dynamicLogWithPP $ myDzenPP pipe
-
--- | Move the window to the floating layer.
---doSink :: ManageHook
-doSink = ask >>= \w -> doF (S.sink w)
-
-myManageHook = composeAll
-		[isFullscreen --> doFullFloat,
-		 isDialog --> doCenterFloat,
-		 className =? "trayer" --> doIgnore,
-		 className =? "Xfce4-notifyd" --> doIgnore,
-         className =? "Conky" --> doIgnore,
-		 title =? "weechat" --> doShift "2:im",
-		 title =? "URxvtConsole" --> doShift "7:misc",
-		 className =? "Chromium" --> doShift "3:www",
-		 className =? "luakit" --> doShift "3:www",
-		 className =? "Firefox" --> doShift "3:www",
-		 className =? "Pidgin" --> doShift "2:im",
-		 --className =? "Evince" --> doShift "6:doc",
-		 className =? "Pcmanfm" --> doShift "7:misc",
-		 className =? "Thunar" --> doShift "7:misc",
-		 className =? "MPlayer" --> doShift "8:vid" <+> doSink,
-         	 className =? "Smplayer" --> doShift "8:vid" <+> doSink,
-		 title =? "ncmpcpp" --> doShift "9:mp3"]
-	where
-		ignore  = ["trayer"]
-
-myDzenTitleBar   = "dzen2 -w 1206 -h 16 -ta l -bg \"" ++ myBarColor ++ "\" -fg \"" ++ myBarInactiveTextColor  ++ "\" -fn \"" ++ myFont  ++ "\""
-myDzenStatusBar  = myTopBar ++  " | dzen2 -y 1184 -x 600 -h 16 -ta r -bg \"" ++ myBarColor ++ "\" -fn \"" ++ myFont ++ "\""
-myDzenMusicBar   = myMusicBar ++ " | dzen2 -y 1184 -h 16 -x 0 -w 600 -ta l -bg \"" ++ myBarColor ++ "\" -fn \"" ++ myFont ++ "\""
-myTray	         = "trayer --monitor 1 --edge top --align right --heighttype pixel --height 16 --widthtype pixels --width 160 --transparent true --alpha 0 --tint 0x111111"
-myWirelessApplet = "nm-applet"
-
-myTopBar = "conky -c ~/.conky_bar_top"
-myMusicBar = "conky -c ~/.conky_bar_bottom"
-
-myDzenPP h = defaultPP
-	{
-	ppOutput  = System.IO.hPutStrLn h, --UTF8.hPutStrLn h,
-	ppCurrent = (\x -> wrapFgColor myCurrentWorkspaceColor ++ wrapImg "corner.xbm" ++ x ++ " ^fg()^bg()"),
-	ppHidden  = (\x -> "^ca(1, xdotool key Super+" ++ [x!!0]  ++ ")" ++ wrapImg "corner.xbm" ++ x ++ " ^ca()^fg()^bg()"), --(\x -> wrapFgColor myPopulatedWorkspaceColor ++ wrapImg "corner.xbm" ++ x ++ "^fg()"),
-	ppUrgent  = (\x -> wrapBgColor myUrgentWorkspaceColor ++ wrapFgColor "#000000" ++ "^ca(1, xdotool key Super+" ++ [x!!0] ++ ")" ++ wrapImg "corner.xbm"  ++ x ++ " ^ca()^fg()^bg()" ),
-	ppSep     = wrapFgColor myBarTextColor ++ " | ", --hack, so that rest is proper color
-	ppWsSep   = "",
-	ppTitle   = (\x -> x)
-	}
-	where
-		wrapFgColor color    = "^fg(" ++ color ++ ")"
-		wrapBgColor color    = "^bg(" ++ color ++ ")"
-		wrapImg img 	     = "^i(" ++ myImgDirectory ++ img ++ ")"
-		wrapImgCol img color = "^fg(" ++ color ++ ")^i(" ++ myImgDirectory ++ img ++ ")"
+    `additionalKeysP`
+        [ ("<XF86AudioPlay>", spawn "mpc toggle")
+        , ("<XF86AudioStop>", spawn "mpc stop")
+        , ("<XF86AudioNext>", spawn "mpc next")
+        , ("<XF86AudioPrev>", spawn "mpc prev")
+        ]
