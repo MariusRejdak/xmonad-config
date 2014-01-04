@@ -1,4 +1,0 @@
-xmonad-config
-=============
-
-xmonad-config
