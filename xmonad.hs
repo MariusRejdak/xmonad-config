@@ -49,9 +49,10 @@ scratchpads = [NS "choqok" "choqok" (appName =? "choqok") floatingConf]
             floatingConf = customFloating $ W.RationalRect (1/24) (1/24) (11/12) (11/12)
 
 myLayoutMods x = fullscreenFull $ desktopLayoutModifiers $ lessBorders OnlyFloat $ maximize $ minimize x
-myLayout = onWorkspace "2:im" imLayout $ tile
+myLayout = onWorkspace "2:im" imLayout $ (tile ||| mtile)
     where
-        tile = myLayoutMods $  Tall nmaster delta ratio
+        tile = myLayoutMods $ Tall nmaster delta ratio
+        mtile = myLayoutMods $ Mirror $ Tall nmaster delta ratio
         nmaster = 1
         ratio   = 3/4
         delta   = 4/100
@@ -90,10 +91,8 @@ myMouseBindings (XConfig {XMonad.modMask = modm}) = M.fromList $
     [ ((modm,               button1), \w -> focus w >> windows W.shiftMaster >> mouseMoveWindow w >> snapMagicMove (Just 50) (Just 50) w)
     , ((modm,               button2), \w -> focus w >> snapMagicMouseResize 50 Nothing Nothing w)
     , ((modm,               button3), \w -> focus w >> Flex.mouseWindow Flex.resize w >> snapMagicMouseResize 50 (Just 50) (Just 50) w)
-    , ((modm,               button4), \_ -> nextWS)
-    -- , ((modm .|. shiftMask, button4), \_ -> windows $ W.swapUp) -- TODO: Fix NSP
-    , ((modm,               button5), \_ -> prevWS)
-    -- , ((modm .|. shiftMask, button5), \_ -> windows $ W.swapDown) -- TODO: Fix NSP
+    , ((modm,               button4), \_ -> windows $ W.swapUp)
+    , ((modm,               button5), \_ -> windows $ W.swapDown)
     ]
 
 main = xmonad $ kde4Config {
@@ -127,7 +126,7 @@ main = xmonad $ kde4Config {
         , ((myModMask .|. shiftMask, xK_w     ), swapNextScreen)
         , ((myModMask .|. shiftMask, xK_e     ), shiftTo Next EmptyWS)
         , ((myModMask              , xK_e     ), moveTo Next EmptyWS)
-        , ((myModMask              , xK_Tab   ), toggleWS)
+        , ((myModMask              , xK_Tab   ), toggleWS' ["NSP"])
         , ((myModMask              , xK_b     ), spawn "firefox")
         , ((myModMask              , xK_x     ), spawn "/usr/lib/kde4/libexec/kscreenlocker_greet --immediateLock")
         , ((myModMask              , xK_r), spawn "xprop > ~/test.txt") -- debugging stuff remove later
