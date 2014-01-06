@@ -9,6 +9,7 @@ import XMonad.Actions.CycleWS
 import XMonad.Actions.DynamicWorkspaces
 import qualified XMonad.Actions.FlexibleManipulate as Flex
 import XMonad.Actions.FloatSnap
+import XMonad.Actions.SpawnOn
 import XMonad.Config.Kde
 import XMonad.Config.Desktop
 import XMonad.Hooks.EwmhDesktops
@@ -26,7 +27,9 @@ import XMonad.Layout.PerWorkspace
 import XMonad.Layout.Reflect
 import XMonad.Util.EZConfig
 import XMonad.Util.NamedScratchpad
-import XMonad.Util.WindowProperties (getProp32s)
+
+import Control.Monad (when)
+import System.Process (readProcess)
 
 myTerminal          = "urxvtc"
 myFocusFollowsMouse = True
@@ -35,7 +38,7 @@ myBorderWidth       = 2
 myWorkspaces        = ["1:www","2:im","3:misc"] ++ map show [4..9]
 myNormalBorderColor  = "#aaaaaa"
 myFocusedBorderColor = "#ff0000"
-myCompton = "sleep 2; compton -b -f --backend glx --blur-background --vsync opengl --glx-use-gpushader4 -D 4 --sw-opti -e 0.7 -m 0.8 -G"
+myCompton = "compton -b -f --backend glx --blur-background --vsync opengl --glx-use-gpushader4 -D 4 --sw-opti -e 0.7 -m 0.8 -G"
 
 myConsoleScratchpads = 
     [ (xK_F1, "term1", "fish")
@@ -46,14 +49,14 @@ myConsoleScratchpads =
 
 doUnFloat = ask >>= doF . W.sink
 
-kdeOverride :: Query Bool
-kdeOverride = ask >>= \w -> liftX $ do
-    override <- getAtom "_KDE_NET_WM_WINDOW_TYPE_OVERRIDE"
-    wt <- getProp32s "_NET_WM_WINDOW_TYPE" w
-    return $ maybe False (elem $ fromIntegral override) wt
+--kdeOverride :: Query Bool
+--kdeOverride = ask >>= \w -> liftX $ do
+--    override <- getAtom "_KDE_NET_WM_WINDOW_TYPE_OVERRIDE"
+--    wt <- getProp32s "_NET_WM_WINDOW_TYPE" w
+--    return $ maybe False (elem $ fromIntegral override) wt
 
--- doRemoveBorders :: Query (Endo WindowSet)
--- doRemoveBorders = ask >>= \w -> liftX . withDisplay $ \d -> io $ setWindowBorder d w 0
+--doRemoveBorders :: Query (Endo WindowSet)
+--doRemoveBorders = ask >>= doF . (\w -> liftX . withDisplay $ \d -> io $ setWindowBorder d w 0)
 
 isKDEOverride = do
     isover <- isInProperty "_NET_WM_WINDOW_TYPE" "_KDE_NET_WM_WINDOW_TYPE_OVERRIDE"
@@ -86,37 +89,51 @@ myLayout = onWorkspace "2:im" imLayout $ (tile ||| mtile)
 myManageHook = 
     composeOne [ isKDEOverride -?> doFloat ]
     <+> ((className =? "krunner") >>= return . not --> manageHook kde4Config)
-    -- <+> (kdeOverride --> doFloat)
+    <+> manageSpawn
     <+> (composeAll
         [ className =? "Pidgin"             --> doShift "2:im"
         , className =? "Firefox"            --> doShift "1:www"
         , className =? "Xmessage"           --> doFloat
-        --, className =? "plasma"             --> doFloat
-        --, className =? "Plasma"             --> doFloat
-        --, className =? "plasma-desktop"     --> doFloat
-        --, className =? "Plasma-desktop"     --> doFloat
-        --, className =? "krunner"            --> doFloat
-        --, className =? "Klipper"            --> doFloat
+        , className =? "Klipper"            --> doFloat
         , className =? "Knotes"             --> doFloat
-        --, appName   =? "desktop_window"     --> doIgnore
-        --, appName   =? "kdesktop"           --> doIgnore
         , isDialog                          --> doCenterFloat
-        --, isKDETrayWindow                   --> doIgnore
+        , isKDETrayWindow                   --> doIgnore
         ] )
-    -- <+> fullscreenManageHook
+    <+> fullscreenManageHook
     <+> namedScratchpadManageHook scratchpads
  
 myEventHook = minimizeEventHook <+> fullscreenEventHook
 
+checkIfRunning :: MonadIO m => String -> m Bool 
+checkIfRunning name = do
+    s <- liftIO $ readProcess "bash" ["-c", "ps aux | grep -e '" ++ name ++ "' | grep -v grep | wc -l"] ""
+    return ((read "1" :: Int) /= 0)
+
+doIfRunning :: MonadIO m => String -> m () -> m ()
+doIfRunning name command = do
+    b <- checkIfRunning name
+    when (not b) command
+
+doIfNotRunning :: MonadIO m => String -> m () -> m ()
+doIfNotRunning name command = do
+    b <- checkIfRunning name
+    when b command
+
+killIfRunning name = doIfRunning name $ spawn ("killall " ++ name)
+spawnIfNotRunning name = doIfNotRunning name $ spawn name
+
 myStartupHook = do
-    -- spawn "if [ $(ps aux | grep -e 'compton$' | grep -v grep | wc -l | tr -s \"\n\") -eq 0 ]; then killall compton; fi"
+    --killIfRunning "compton"
     ewmhDesktopsStartup
     setWMName "LG3D"
-    let ifRunningWrap command = "if [ $(ps aux | grep -e '" ++ command ++ "$' | grep -v grep | wc -l | tr -s \"\n\") -eq 0 ]; then " ++ command ++ "; fi"
-    spawn $ ifRunningWrap "urxvtd"
-    spawn $ ifRunningWrap "pidgin"
-    -- spawn myCompton
-    spawn "fishd"
+    spawn "killall plasma-desktop; plasma-desktop"
+    spawnIfNotRunning "fishd"
+    spawnIfNotRunning "urxvtd"
+    spawnIfNotRunning "pidgin"
+    doIfNotRunning "kupfer" $ spawn "kupfer --no-splash"
+    doIfNotRunning "firefox" $ spawnOn "1:www" "firefox"
+    doIfNotRunning "thunderbird" $ spawnOn "9" "thunderbird"
+    spawn myCompton
         
 myMouseBindings (XConfig {XMonad.modMask = modm}) = M.fromList $
     [ ((modm,               button1), \w -> focus w >> windows W.shiftMaster >> mouseMoveWindow w >> snapMagicMove (Just 50) (Just 50) w)
@@ -159,10 +176,10 @@ main = xmonad $ ewmh kde4Config {
         , ((myModMask .|. shiftMask, xK_e     ), shiftTo Next EmptyWS)
         , ((myModMask              , xK_e     ), moveTo Next EmptyWS)
         , ((myModMask              , xK_Tab   ), toggleWS' ["NSP"])
-        , ((myModMask              , xK_b     ), spawn "firefox")
+        , ((myModMask .|. shiftMask, xK_f     ), spawn "firefox")
         , ((myModMask              , xK_x     ), spawn "/usr/lib/kde4/libexec/kscreenlocker_greet --immediateLock")
         , ((myModMask              , xK_p     ), spawn "kupfer")
-        , ((myModMask              , xK_r), spawn "xprop > ~/test.txt") -- debugging stuff remove later
+        -- , ((myModMask              , xK_r), spawn "xprop > ~/test.txt") -- debugging stuff remove later
         , ((myModMask              , xK_F3), namedScratchpadAction scratchpads "choqok")
         , ((myModMask              , xK_s), namedScratchpadAction scratchpads "krusader")
         ] ++ [((myModMask, key), namedScratchpadAction scratchpads name) | (key,name,_) <- myConsoleScratchpads]
