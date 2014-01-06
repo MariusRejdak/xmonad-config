@@ -29,7 +29,9 @@ import XMonad.Util.EZConfig
 import XMonad.Util.NamedScratchpad
 
 import Control.Monad (when)
-import System.Process (readProcess)
+import Control.Concurrent (threadDelay)
+import System.Process (readProcess, runInteractiveCommand, waitForProcess)
+import System.IO
 
 myTerminal          = "urxvtc"
 myFocusFollowsMouse = True
@@ -104,9 +106,16 @@ myManageHook =
  
 myEventHook = minimizeEventHook <+> fullscreenEventHook
 
+runAndGetOutput :: MonadIO m => String -> m String
+runAndGetOutput cmd = liftIO $ do
+    (_, pout, _, phandle) <- runInteractiveCommand cmd
+    a <- hGetContents pout
+    waitForProcess phandle
+    return a
+
 checkIfRunning :: MonadIO m => String -> m Bool 
 checkIfRunning name = do
-    s <- liftIO $ readProcess "bash" ["-c", "ps aux | grep -e '" ++ name ++ "' | grep -v grep | wc -l"] ""
+    s <- runAndGetOutput $ "ps aux | grep -e '" ++ name ++ "' | grep -v grep | wc -l"
     return ((read "1" :: Int) /= 0)
 
 doIfRunning :: MonadIO m => String -> m () -> m ()
@@ -133,6 +142,7 @@ myStartupHook = do
     doIfNotRunning "kupfer" $ spawn "kupfer --no-splash"
     doIfNotRunning "firefox" $ spawnOn "1:www" "firefox"
     doIfNotRunning "thunderbird" $ spawnOn "9" "thunderbird"
+    (liftIO $ threadDelay 2000000)
     spawn myCompton
         
 myMouseBindings (XConfig {XMonad.modMask = modm}) = M.fromList $
