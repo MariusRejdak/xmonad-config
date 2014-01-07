@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 import Data.Monoid
 import Data.Ratio ((%))
 import qualified Data.Map as M
@@ -40,41 +41,67 @@ myBorderWidth       = 2
 myWorkspaces        = ["1:www","2:im","3:misc"] ++ map show [4..9]
 myNormalBorderColor  = "#aaaaaa"
 myFocusedBorderColor = "#ff0000"
+myFloatBorderColor = "#00ff00"
 myCompton = "compton -b -f --backend glx --blur-background --vsync opengl --glx-use-gpushader4 -D 4 --sw-opti -e 0.7 -m 0.8 -G"
 
 myConsoleScratchpads = 
-    [ (xK_F1, "term1", "fish")
-    , (xK_F2, "term2", "fish")
-    , (xK_a, "top", "htop")
-    , (xK_d, "mpd", "ncmpcpp")
+    [ ((myModMask, xK_F1), "term1", "fish")
+    , ((myModMask, xK_F2), "term2", "fish")
+    , ((myModMask, xK_a ), "top", "htop")
+    , ((myModMask, xK_s ), "mc", "mc")
+    , ((myModMask, xK_d ), "mpd", "ncmpcpp")
     ]
 
+-- key name command appName
+myAppScratchpads = 
+    [ ((myModMask .|. shiftMask, xK_a), "ksysguard", "ksysguard", "ksysguard")
+    , ((myModMask .|. shiftMask, xK_s), "krusader", "krusader", "krusader")
+    , ((myModMask .|. shiftMask, xK_d), "cantata", "cantata", "cantata")
+    ]
+
+doUnFloat :: Query (Endo WindowSet)
 doUnFloat = ask >>= doF . W.sink
 
---kdeOverride :: Query Bool
---kdeOverride = ask >>= \w -> liftX $ do
---    override <- getAtom "_KDE_NET_WM_WINDOW_TYPE_OVERRIDE"
---    wt <- getProp32s "_NET_WM_WINDOW_TYPE" w
---    return $ maybe False (elem $ fromIntegral override) wt
+-- | Set the border color when the query is satisfied.  Should be added to the
+--   ManageHook.
+colorBorderWhen :: Query Bool -> String -> X ()
+colorBorderWhen q cl = withFocused $ \w -> runQuery q w >>= flip when (setWindowBorder' cl w)
 
---doRemoveBorders :: Query (Endo WindowSet)
---doRemoveBorders = ask >>= doF . (\w -> liftX . withDisplay $ \d -> io $ setWindowBorder d w 0)
+-- | Set the border color when the query is satisfied.  Should be added to the
+--   ManageHook.
+removeBorderWhen :: Query Bool -> X ()
+removeBorderWhen q = withFocused $ \w -> runQuery q w >>= flip when (removeWindowBorder' w)
 
+-- | Give set the border color of a window to the given HTML color code.
+setWindowBorder' ::(MonadReader XConf m, MonadIO m) => String -> Window -> m ()
+setWindowBorder' c w = do
+    XConf { display = d } <- ask
+    ~(Just pc) <- io $ initColor d c
+    io $ setWindowBorder d w pc
+
+removeWindowBorder' ::(MonadReader XConf m, MonadIO m) => Window -> m ()
+removeWindowBorder' w = do
+    XConf { display = d } <- ask
+    io $ setWindowBorder d w 0
+
+-- | Is the focused window a floating window?
+isFloat :: Query Bool
+isFloat = ask >>= (\w -> liftX $ withWindowSet $ \ws -> return $ M.member w $ W.floating ws)
+
+isKDEOverride :: Query Bool
 isKDEOverride = do
     isover <- isInProperty "_NET_WM_WINDOW_TYPE" "_KDE_NET_WM_WINDOW_TYPE_OVERRIDE"
     isfs <- isFullscreen
     return $! isover && (not isfs)
 
--- TODO: more meta scratchpads like consoles
-scratchpads = [NS "choqok" "choqok" (appName =? "choqok") floatingConf]
-    ++ [NS "krusader" "krusader" (appName =? "krusader") floatingConf]
+scratchpads = [NS name command (appName =? thisAppName) floatingConf | (_,name,command,thisAppName) <- myAppScratchpads]
     ++ [NS name (myTerminal ++ " -name " ++ name ++ " -e " ++ command) (appName =? name) floatingConf | (_,name,command) <- myConsoleScratchpads]
-        where
-            floatingConf = customFloating $ W.RationalRect (1/24) (1/24) (11/12) (11/12)
+    where
+        floatingConf = customFloating $ W.RationalRect (1/24) (1/24) (11/12) (11/12)
 
-myLayoutMods l = fullscreenFull
-    $ desktopLayoutModifiers 
-    $ lessBorders OnlyFloat
+myLayoutMods l = lessBorders OnlyFloat
+    $ fullscreenFull
+    $ desktopLayoutModifiers
     $ maximize 
     $ minimize
         l
@@ -98,6 +125,7 @@ myManageHook =
         , className =? "Xmessage"           --> doFloat
         , className =? "Klipper"            --> doFloat
         , className =? "Knotes"             --> doFloat
+        , className =? "MPlayer"            --> doFullFloat
         , isDialog                          --> doCenterFloat
         , isKDETrayWindow                   --> doIgnore
         ] )
@@ -106,44 +134,45 @@ myManageHook =
  
 myEventHook = minimizeEventHook <+> fullscreenEventHook
 
-runAndGetOutput :: MonadIO m => String -> m String
-runAndGetOutput cmd = liftIO $ do
-    (_, pout, _, phandle) <- runInteractiveCommand cmd
-    a <- hGetContents pout
-    waitForProcess phandle
-    return a
 
-checkIfRunning :: MonadIO m => String -> m Bool 
-checkIfRunning name = do
-    s <- runAndGetOutput $ "ps aux | grep -e '" ++ name ++ "' | grep -v grep | wc -l"
-    return ((read "1" :: Int) /= 0)
+-- Not working :(
+--runAndGetOutput :: MonadIO m => String -> m String
+--runAndGetOutput cmd = liftIO $ do
+--    (_, pout, _, phandle) <- runInteractiveCommand cmd
+--    a <- hGetContents pout
+--    waitForProcess phandle
+--    return a
 
-doIfRunning :: MonadIO m => String -> m () -> m ()
-doIfRunning name command = do
-    b <- checkIfRunning name
-    when (not b) command
+--checkIfRunning :: MonadIO m => String -> m Bool 
+--checkIfRunning name = do
+--    s <- liftIO $ runAndGetOutput $ "ps aux | grep -e '" ++ name ++ "' | grep -v grep | wc -l"
+--    return ((read s :: Int) /= 0)
 
-doIfNotRunning :: MonadIO m => String -> m () -> m ()
-doIfNotRunning name command = do
-    b <- checkIfRunning name
-    when b command
+--doIfRunning :: MonadIO m => String -> m () -> m ()
+--doIfRunning name command = do
+--    b <- checkIfRunning name
+--    when (not b) command
 
-killIfRunning name = doIfRunning name $ spawn ("killall " ++ name)
-spawnIfNotRunning name = doIfNotRunning name $ spawn name
+--doIfNotRunning :: MonadIO m => String -> m () -> m ()
+--doIfNotRunning name command = do
+--    b <- checkIfRunning name
+--    when b command
+
+--killIfRunning name = doIfRunning name $ spawn ("killall " ++ name ++ " &")
+--spawnIfNotRunning name = doIfNotRunning name $ spawn (name ++ " &")
 
 myStartupHook = do
-    --killIfRunning "compton"
+    spawn "killall compton &"
     ewmhDesktopsStartup
     setWMName "LG3D"
-    spawn "killall plasma-desktop; plasma-desktop"
-    spawnIfNotRunning "fishd"
-    spawnIfNotRunning "urxvtd"
-    spawnIfNotRunning "pidgin"
-    doIfNotRunning "kupfer" $ spawn "kupfer --no-splash"
-    doIfNotRunning "firefox" $ spawnOn "1:www" "firefox"
-    doIfNotRunning "thunderbird" $ spawnOn "9" "thunderbird"
-    (liftIO $ threadDelay 2000000)
-    spawn myCompton
+    spawn "plasma-desktop"
+    spawn "fishd"
+    spawn "urxvtd"
+    spawn "pidgin"
+    spawn "kupfer --no-splash"
+    spawnOn "1:www" "firefox"
+    spawnOn "9" "thunderbird"
+    spawn $ "sleep 2;" ++ myCompton
         
 myMouseBindings (XConfig {XMonad.modMask = modm}) = M.fromList $
     [ ((modm,               button1), \w -> focus w >> windows W.shiftMaster >> mouseMoveWindow w >> snapMagicMove (Just 50) (Just 50) w)
@@ -152,6 +181,10 @@ myMouseBindings (XConfig {XMonad.modMask = modm}) = M.fromList $
     , ((modm,               button4), \_ -> windows $ W.swapUp)
     , ((modm,               button5), \_ -> windows $ W.swapDown)
     ]
+
+myLogHook = do
+    removeBorderWhen isKDEOverride
+    colorBorderWhen isFloat myFloatBorderColor
 
 main = xmonad $ ewmh kde4Config {
         terminal           = myTerminal,
@@ -165,34 +198,36 @@ main = xmonad $ ewmh kde4Config {
         layoutHook         = myLayout,
         manageHook         = myManageHook,
         handleEventHook    = myEventHook <+> handleEventHook kde4Config,
-        startupHook        = myStartupHook
+        startupHook        = myStartupHook,
+        logHook            = myLogHook
     }
 
     `removeKeys`
         [ (myModMask .|. shiftMask, xK_w     )
         , (myModMask .|. shiftMask, xK_e     )
+        , (myModMask              , xK_q     )
         , (myModMask .|. shiftMask, xK_q     )
         , (myModMask              , xK_Tab   )
         , (myModMask              , xK_p     )
+        , (myModMask              , xK_r     )
         ]
 
     `additionalKeys` (
-        [ ((myModMask              , xK_q     ), spawn "xmonad --recompile && xmonad --restart")
+        [ ((myModMask .|. shiftMask, xK_q     ), spawn "xmonad --recompile && xmonad --restart")
         , ((myModMask              , xK_m     ), withFocused minimizeWindow)
         , ((myModMask .|. shiftMask, xK_m     ), sendMessage RestoreNextMinimizedWin)
         , ((myModMask              , xK_f     ), withFocused (sendMessage . maximizeRestore))
         , ((myModMask              , xK_w     ), nextScreen)
-        , ((myModMask .|. shiftMask, xK_w     ), swapNextScreen)
+        , ((myModMask .|. controlMask, xK_w     ), swapNextScreen)
         , ((myModMask .|. shiftMask, xK_e     ), shiftTo Next EmptyWS)
         , ((myModMask              , xK_e     ), moveTo Next EmptyWS)
         , ((myModMask              , xK_Tab   ), toggleWS' ["NSP"])
         , ((myModMask .|. shiftMask, xK_f     ), spawn "firefox")
         , ((myModMask              , xK_x     ), spawn "/usr/lib/kde4/libexec/kscreenlocker_greet --immediateLock")
-        , ((myModMask              , xK_p     ), spawn "kupfer")
-        -- , ((myModMask              , xK_r), spawn "xprop > ~/test.txt") -- debugging stuff remove later
-        , ((myModMask              , xK_F3), namedScratchpadAction scratchpads "choqok")
-        , ((myModMask              , xK_s), namedScratchpadAction scratchpads "krusader")
-        ] ++ [((myModMask, key), namedScratchpadAction scratchpads name) | (key,name,_) <- myConsoleScratchpads]
+        , ((myModMask              , xK_r     ), spawn "kupfer")
+        , ((myModMask .|. shiftMask, xK_r), spawn "xprop | xmessage -file -") -- debugging stuff remove later
+        ] ++ [(key, namedScratchpadAction scratchpads name) | (key,name,_) <- myConsoleScratchpads]
+          ++ [(key, namedScratchpadAction scratchpads name) | (key,name,_,_) <- myAppScratchpads]
           ++ [((m .|. myModMask, k), windows $ f i) | (i, k) <- zip myWorkspaces [xK_1 .. xK_9], (f, m) <- [(W.view, 0), (W.shift, shiftMask)]]
           ++ [((controlMask .|. myModMask, k), windows $ W.greedyView i) | (i, k) <- zip myWorkspaces [xK_1 .. xK_9]]
     )
