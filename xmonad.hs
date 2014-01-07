@@ -137,32 +137,6 @@ myManageHook =
  
 myEventHook = minimizeEventHook <+> fullscreenEventHook
 
--- Not working :(
---runAndGetOutput :: MonadIO m => String -> m String
---runAndGetOutput cmd = liftIO $ do
---    (_, pout, _, phandle) <- runInteractiveCommand cmd
---    a <- hGetContents pout
---    waitForProcess phandle
---    return a
-
---checkIfRunning :: MonadIO m => String -> m Bool 
---checkIfRunning name = do
---    s <- liftIO $ runAndGetOutput $ "ps aux | grep -e '" ++ name ++ "' | grep -v grep | wc -l"
---    return ((read s :: Int) /= 0)
-
---doIfRunning :: MonadIO m => String -> m () -> m ()
---doIfRunning name command = do
---    b <- checkIfRunning name
---    when (not b) command
-
---doIfNotRunning :: MonadIO m => String -> m () -> m ()
---doIfNotRunning name command = do
---    b <- checkIfRunning name
---    when b command
-
---killIfRunning name = doIfRunning name $ spawn ("killall " ++ name ++ " &")
---spawnIfNotRunning name = doIfNotRunning name $ spawn (name ++ " &")
-
 myStartupHook = do
     spawn "killall compton &"
     ewmhDesktopsStartup
