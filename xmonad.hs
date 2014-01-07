@@ -39,10 +39,11 @@ myFocusFollowsMouse = True
 myModMask           = mod4Mask
 myBorderWidth       = 2
 myWorkspaces        = ["1:www","2:im","3:misc"] ++ map show [4..9]
+myAddWorkspaces     = ["0:video", "NSP"]
 myNormalBorderColor  = "#aaaaaa"
 myFocusedBorderColor = "#ff0000"
 myFloatBorderColor = "#00ff00"
-myCompton = "compton -b -f --backend glx --blur-background --vsync opengl --glx-use-gpushader4 -D 4 --sw-opti -e 0.7 -m 0.8 -G"
+myCompton = "compton -b -f --backend glx --blur-background --vsync opengl --glx-use-gpushader4 -D 4 --sw-opti -e 1 -m 0.8 -G"
 
 myConsoleScratchpads = 
     [ ((myModMask, xK_F1), "term1", "fish")
@@ -59,8 +60,8 @@ myAppScratchpads =
     , ((myModMask .|. shiftMask, xK_d), "cantata", "cantata", "cantata")
     ]
 
-doUnFloat :: Query (Endo WindowSet)
-doUnFloat = ask >>= doF . W.sink
+doSink :: Query (Endo WindowSet)
+doSink = ask >>= doF . W.sink
 
 -- | Set the border color when the query is satisfied.  Should be added to the
 --   ManageHook.
@@ -88,6 +89,7 @@ removeWindowBorder' w = do
 isFloat :: Query Bool
 isFloat = ask >>= (\w -> liftX $ withWindowSet $ \ws -> return $ M.member w $ W.floating ws)
 
+-- | Is a KDE floating window?
 isKDEOverride :: Query Bool
 isKDEOverride = do
     isover <- isInProperty "_NET_WM_WINDOW_TYPE" "_KDE_NET_WM_WINDOW_TYPE_OVERRIDE"
@@ -106,13 +108,14 @@ myLayoutMods l = lessBorders OnlyFloat
     $ minimize
         l
 
-myLayout = onWorkspace "2:im" imLayout $ (tile ||| mtile)
+myLayout = onWorkspace "0:video" videoLayout $ onWorkspace "2:im" imLayout $ (tile ||| mtile)
     where
         tile = myLayoutMods $ Tall nmaster delta ratio
         mtile = myLayoutMods $ Mirror $ Tall nmaster delta ratio
         nmaster = 1
         ratio   = 3/4
         delta   = 4/100
+        videoLayout = noBorders Full ||| (avoidStruts . noBorders) Full
         imLayout = myLayoutMods $ reflectHoriz $ withIM (5%20) (Role "buddy_list") Grid
  
 myManageHook = 
@@ -133,7 +136,6 @@ myManageHook =
     <+> namedScratchpadManageHook scratchpads
  
 myEventHook = minimizeEventHook <+> fullscreenEventHook
-
 
 -- Not working :(
 --runAndGetOutput :: MonadIO m => String -> m String
@@ -175,23 +177,26 @@ myStartupHook = do
     spawn $ "sleep 2;" ++ myCompton
         
 myMouseBindings (XConfig {XMonad.modMask = modm}) = M.fromList $
-    [ ((modm,               button1), \w -> focus w >> windows W.shiftMaster >> mouseMoveWindow w >> snapMagicMove (Just 50) (Just 50) w)
-    , ((modm,               button2), \w -> focus w >> snapMagicMouseResize 50 Nothing Nothing w)
-    , ((modm,               button3), \w -> focus w >> Flex.mouseWindow Flex.resize w >> snapMagicMouseResize 50 (Just 50) (Just 50) w)
-    , ((modm,               button4), \_ -> windows $ W.swapUp)
-    , ((modm,               button5), \_ -> windows $ W.swapDown)
+    [ ((modm              , button1), \w -> focus w >> windows W.shiftMaster >> mouseMoveWindow w >> snapMagicMove (Just 50) (Just 50) w)
+    , ((modm              , button2), \w -> focus w >> snapMagicMouseResize 50 Nothing Nothing w)
+    , ((modm              , button3), \w -> focus w >> Flex.mouseWindow Flex.resize w >> snapMagicMouseResize 50 (Just 50) (Just 50) w)
+    , ((modm              , button4), \_ -> windows $ W.focusUp)
+    , ((modm .|. shiftMask, button4), \_ -> windows $ W.swapUp)
+    , ((modm              , button5), \_ -> windows $ W.focusDown)
+    , ((modm .|. shiftMask, button5), \_ -> windows $ W.swapDown)
     ]
 
 myLogHook = do
-    removeBorderWhen isKDEOverride
     colorBorderWhen isFloat myFloatBorderColor
+    removeBorderWhen isKDEOverride
+    removeBorderWhen (className =? "Klipper")
 
 main = xmonad $ ewmh kde4Config {
         terminal           = myTerminal,
         focusFollowsMouse  = myFocusFollowsMouse,
         borderWidth        = myBorderWidth,
         modMask            = myModMask,
-        workspaces         = myWorkspaces,
+        workspaces         = myWorkspaces ++ myAddWorkspaces,
         normalBorderColor  = myNormalBorderColor,
         focusedBorderColor = myFocusedBorderColor,
         mouseBindings      = myMouseBindings,
@@ -213,19 +218,22 @@ main = xmonad $ ewmh kde4Config {
         ]
 
     `additionalKeys` (
-        [ ((myModMask .|. shiftMask, xK_q     ), spawn "xmonad --recompile && xmonad --restart")
-        , ((myModMask              , xK_m     ), withFocused minimizeWindow)
-        , ((myModMask .|. shiftMask, xK_m     ), sendMessage RestoreNextMinimizedWin)
-        , ((myModMask              , xK_f     ), withFocused (sendMessage . maximizeRestore))
-        , ((myModMask              , xK_w     ), nextScreen)
-        , ((myModMask .|. controlMask, xK_w     ), swapNextScreen)
-        , ((myModMask .|. shiftMask, xK_e     ), shiftTo Next EmptyWS)
-        , ((myModMask              , xK_e     ), moveTo Next EmptyWS)
-        , ((myModMask              , xK_Tab   ), toggleWS' ["NSP"])
-        , ((myModMask .|. shiftMask, xK_f     ), spawn "firefox")
-        , ((myModMask              , xK_x     ), spawn "/usr/lib/kde4/libexec/kscreenlocker_greet --immediateLock")
-        , ((myModMask              , xK_r     ), spawn "kupfer")
-        , ((myModMask .|. shiftMask, xK_r), spawn "xprop | xmessage -file -") -- debugging stuff remove later
+        [ ((myModMask .|. shiftMask  , xK_q   ), spawn "xmonad --recompile && xmonad --restart")
+        , ((myModMask                , xK_m   ), withFocused minimizeWindow)
+        , ((myModMask .|. shiftMask  , xK_m   ), sendMessage RestoreNextMinimizedWin)
+        , ((myModMask                , xK_f   ), withFocused (sendMessage . maximizeRestore))
+        , ((myModMask                , xK_w   ), nextScreen)
+        , ((myModMask                , xK_e   ), swapNextScreen)
+        , ((myModMask .|. shiftMask  , xK_e   ), shiftTo Next EmptyWS)
+        , ((myModMask .|. controlMask, xK_e   ), moveTo Next EmptyWS)
+        , ((myModMask                , xK_Tab ), toggleWS' ["NSP"])
+        , ((myModMask .|. shiftMask  , xK_f   ), spawn "firefox")
+        , ((myModMask                , xK_x   ), spawn "/usr/lib/kde4/libexec/kscreenlocker_greet --immediateLock")
+        , ((myModMask                , xK_r   ), spawn "kupfer")
+        , ((myModMask .|. shiftMask  , xK_r   ), spawn "xprop | xmessage -file -") -- debugging stuff remove later
+        , ((myModMask                , xK_0   ), windows $ W.view "0:video")
+        , ((myModMask .|. shiftMask  , xK_0   ), windows $ W.shift "0:video")
+        , ((myModMask .|. controlMask, xK_0   ), windows $ W.greedyView "0:video")
         ] ++ [(key, namedScratchpadAction scratchpads name) | (key,name,_) <- myConsoleScratchpads]
           ++ [(key, namedScratchpadAction scratchpads name) | (key,name,_,_) <- myAppScratchpads]
           ++ [((m .|. myModMask, k), windows $ f i) | (i, k) <- zip myWorkspaces [xK_1 .. xK_9], (f, m) <- [(W.view, 0), (W.shift, shiftMask)]]
