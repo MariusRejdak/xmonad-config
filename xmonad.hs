@@ -122,6 +122,7 @@ myLogHook = do
     colorBorderWhen isFloat myFloatBorderColor
     removeBorderWhen isKDEOverride
     removeBorderWhen (className =? "Klipper")
+    removeBorderWhen (className =? "Kupfer.py")
 
 main = xmonad $ ewmh kde4Config {
         terminal           = myTerminal,
