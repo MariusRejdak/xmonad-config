@@ -12,6 +12,7 @@ import XMonad.Hooks.ManageDocks
 import XMonad.Hooks.ManageHelpers
 import XMonad.Hooks.Minimize
 import XMonad.Hooks.SetWMName
+import XMonad.Layout.BoringWindows
 import XMonad.Layout.Fullscreen hiding (fullscreenEventHook)
 import XMonad.Layout.Grid
 import XMonad.Layout.IM
@@ -24,6 +25,7 @@ import XMonad.Util.EZConfig
 import XMonad.Util.NamedScratchpad
 
 import Data.Ratio ((%))
+import Data.Monoid (mconcat)
 import qualified Data.Map as M
 
 import Utils
@@ -62,7 +64,8 @@ scratchpads = [NS name command (appName =? thisAppName) floatingConf | (_,name,c
 myLayoutMods l = lessBorders OnlyFloat
     $ fullscreenFull
     $ desktopLayoutModifiers
-    $ maximize 
+    $ boringWindows
+    $ maximize
     $ minimize
         l
 
@@ -86,14 +89,18 @@ myManageHook =
         , className =? "Xmessage"           --> doFloat
         , className =? "Klipper"            --> doFloat
         , className =? "Knotes"             --> doFloat
+        , className =? "Smplayer"           --> doShift "0:video" <+> doSink
+        , className =? "Vlc"                --> doShift "0:video" <+> doSink
+        , className =? "Steam"              --> doShift "0:video" <+> doSink
         , className =? "MPlayer"            --> doFullFloat
+        , className =? "Sm"                 --> doFullFloat
         , isDialog                          --> doCenterFloat
         , isKDETrayWindow                   --> doIgnore
         ] )
     <+> fullscreenManageHook
     <+> namedScratchpadManageHook scratchpads
  
-myEventHook = minimizeEventHook <+> fullscreenEventHook
+myEventHook = mconcat [minimizeEventHook, fullscreenEventHook]
 
 myStartupHook = do
     spawn "killall compton &"
@@ -112,9 +119,9 @@ myMouseBindings (XConfig {XMonad.modMask = modm}) = M.fromList $
     [ ((modm              , button1), \w -> focus w >> windows W.shiftMaster >> mouseMoveWindow w >> snapMagicMove (Just 50) (Just 50) w)
     , ((modm              , button2), \w -> focus w >> snapMagicMouseResize 50 Nothing Nothing w)
     , ((modm              , button3), \w -> focus w >> Flex.mouseWindow Flex.resize w >> snapMagicMouseResize 50 (Just 50) (Just 50) w)
-    , ((modm              , button4), \_ -> windows $ W.focusUp)
+    , ((modm              , button4), \_ -> focusUp)
     , ((modm .|. shiftMask, button4), \_ -> windows $ W.swapUp)
-    , ((modm              , button5), \_ -> windows $ W.focusDown)
+    , ((modm              , button5), \_ -> focusDown)
     , ((modm .|. shiftMask, button5), \_ -> windows $ W.swapDown)
     ]
 
@@ -141,13 +148,9 @@ main = xmonad $ ewmh kde4Config {
     }
 
     `removeKeys`
-        [ (myModMask .|. shiftMask, xK_w     )
-        , (myModMask .|. shiftMask, xK_e     )
-        , (myModMask              , xK_q     )
-        , (myModMask .|. shiftMask, xK_q     )
+        [ (myModMask              , xK_q     )
         , (myModMask              , xK_Tab   )
         , (myModMask              , xK_p     )
-        , (myModMask              , xK_r     )
         ]
 
     `additionalKeys` (
@@ -157,8 +160,11 @@ main = xmonad $ ewmh kde4Config {
         , ((myModMask                , xK_f   ), withFocused (sendMessage . maximizeRestore))
         , ((myModMask                , xK_w   ), nextScreen)
         , ((myModMask                , xK_e   ), swapNextScreen)
-        , ((myModMask .|. shiftMask  , xK_e   ), shiftTo Next EmptyWS)
-        , ((myModMask .|. controlMask, xK_e   ), moveTo Next EmptyWS)
+        , ((myModMask                , xK_j   ), focusUp)
+        , ((myModMask                , xK_k   ), focusDown)
+        , ((myModMask                , xK_z   ), focusMaster)
+        --, ((myModMask .|. shiftMask  , xK_e   ), shiftTo Next EmptyWS)
+        --, ((myModMask .|. controlMask, xK_e   ), moveTo Next EmptyWS)
         , ((myModMask                , xK_Tab ), toggleWS' ["NSP"])
         , ((myModMask .|. shiftMask  , xK_f   ), spawn "firefox")
         , ((myModMask                , xK_x   ), spawn "/usr/lib/kde4/libexec/kscreenlocker_greet --immediateLock")
