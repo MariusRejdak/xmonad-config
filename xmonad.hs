@@ -18,15 +18,22 @@ import XMonad.Layout.Grid
 import XMonad.Layout.IM
 import XMonad.Layout.Maximize
 import XMonad.Layout.Minimize
+import XMonad.Layout.Named
 import XMonad.Layout.NoBorders
 import XMonad.Layout.PerWorkspace
 import XMonad.Layout.Reflect
 import XMonad.Util.EZConfig
 import XMonad.Util.NamedScratchpad
 
+import XMonad.Hooks.DynamicLog
+import XMonad.Util.WorkspaceCompare (getSortByIndex, getSortByXineramaRule)
+
 import Data.Ratio ((%))
 import Data.Monoid (mconcat)
 import qualified Data.Map as M
+
+import Codec.Binary.UTF8.String
+import Codec.Binary.Base64.String as Base64
 
 import Utils
 
@@ -69,15 +76,16 @@ myLayoutMods l = lessBorders OnlyFloat
     $ minimize
         l
 
-myLayout = onWorkspace "0:video" videoLayout $ onWorkspace "2:im" imLayout $ (tile ||| mtile)
+myLayout = onWorkspace "0:video" videoLayout $ onWorkspace "2:im" imLayout $ (tiledR ||| tiledL ||| tiledB)
     where
-        tile = myLayoutMods $ Tall nmaster delta ratio
-        mtile = myLayoutMods $ Mirror $ Tall nmaster delta ratio
+        tiledR = named "Tiled right" $ myLayoutMods $ Tall nmaster delta ratio
+        tiledL = named "Tiled left" $ myLayoutMods $ reflectHoriz $ Tall nmaster delta ratio
+        tiledB = named "Tiled bottom" $ myLayoutMods $ Mirror $ Tall nmaster delta ratio
         nmaster = 1
         ratio   = 3/4
         delta   = 4/100
         videoLayout = noBorders Full ||| (avoidStruts . noBorders) Full
-        imLayout = myLayoutMods $ reflectHoriz $ withIM (5%20) (Role "buddy_list") Grid
+        imLayout = named "IM Grid" $ myLayoutMods $ reflectHoriz $ withIM (5%20) (Role "buddy_list") Grid
  
 myManageHook = 
     composeOne [ isKDEOverride -?> doFloat ]
@@ -125,11 +133,34 @@ myMouseBindings (XConfig {XMonad.modMask = modm}) = M.fromList $
     , ((modm .|. shiftMask, button5), \_ -> windows $ W.swapDown)
     ]
 
+myDynamicLog :: X ()
+myDynamicLog = do
+    dynamicLogString (namedScratchpadFilterOutWorkspacePP myPP) >>= \w -> spawn $ "dbus-send --type=\"method_call\" --dest=org.xmonad.LogService /Log org.xmonad.Log.msg string:\""++(Base64.encode w)++"\""
+
+myPP :: PP
+myPP = PP { ppCurrent         = wrap "[[c]]" ""
+          , ppVisible         = wrap "[[v]]" ""
+          , ppHidden          = id
+          , ppHiddenNoWindows = const ""
+          , ppUrgent          = wrap "[[u]]" ""
+          , ppSep             = "[[|]]"
+          , ppWsSep           = "[[|]]"
+          , ppTitle           = shorten 160
+          , ppTitleSanitize   = wrap "[[t]]" ""
+          , ppLayout          = wrap "[[l]]" ""
+          , ppOrder           = id
+          , ppOutput          = putStrLn
+          , ppSort            = getSortByXineramaRule
+          , ppExtras          = []
+        }
+
 myLogHook = do
     colorBorderWhen isFloat myFloatBorderColor
     removeBorderWhen isKDEOverride
     removeBorderWhen (className =? "Klipper")
     removeBorderWhen (className =? "Kupfer.py")
+    myDynamicLog
+    --spawn "dbus-send --type=\"method_call\" --print-reply --dest=org.xmonad.LogService /Log org.xmonad.Log.msg string:\"dasdasdasdasd\""
 
 main = xmonad $ ewmh kde4Config {
         terminal           = myTerminal,
