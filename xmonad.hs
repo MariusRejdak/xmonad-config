@@ -201,6 +201,7 @@ main = xmonad $ ewmh kde4Config {
         , ((myModMask                , xK_x   ), spawn "/usr/lib/kde4/libexec/kscreenlocker_greet --immediateLock")
         , ((myModMask                , xK_r   ), spawn "kupfer")
         , ((myModMask .|. shiftMask  , xK_r   ), spawn "xprop | xmessage -file -") -- debugging stuff remove later
+        , ((myModMask .|. shiftMask  , xK_i   ), spawn "sm -f white -b black \"\"")
         , ((myModMask                , xK_0   ), windows $ W.view "0:video")
         , ((myModMask .|. shiftMask  , xK_0   ), windows $ W.shift "0:video")
         , ((myModMask .|. controlMask, xK_0   ), windows $ W.greedyView "0:video")
