@@ -12,6 +12,7 @@ import XMonad.Hooks.ManageDocks
 import XMonad.Hooks.ManageHelpers
 import XMonad.Hooks.Minimize
 import XMonad.Hooks.SetWMName
+import XMonad.Hooks.UrgencyHook
 import XMonad.Layout.BoringWindows
 import XMonad.Layout.Fullscreen hiding (fullscreenEventHook)
 import XMonad.Layout.Grid
@@ -19,7 +20,7 @@ import XMonad.Layout.IM
 import XMonad.Layout.Maximize
 import XMonad.Layout.Minimize
 import XMonad.Layout.Named
-import XMonad.Layout.NoBorders
+import XMonad.Layout.NoBorders hiding (Never)
 import XMonad.Layout.PerWorkspace
 import XMonad.Layout.Reflect
 import XMonad.Util.EZConfig
@@ -160,9 +161,8 @@ myLogHook = do
     removeBorderWhen (className =? "Klipper")
     removeBorderWhen (className =? "Kupfer.py")
     myDynamicLog
-    --spawn "dbus-send --type=\"method_call\" --print-reply --dest=org.xmonad.LogService /Log org.xmonad.Log.msg string:\"dasdasdasdasd\""
 
-main = xmonad $ ewmh kde4Config {
+main = xmonad $ withUrgencyHookC BorderUrgencyHook { urgencyBorderColor = "#ff00ff" } urgencyConfig { suppressWhen = Never } $ ewmh kde4Config {
         terminal           = myTerminal,
         focusFollowsMouse  = myFocusFollowsMouse,
         borderWidth        = myBorderWidth,
@@ -194,8 +194,6 @@ main = xmonad $ ewmh kde4Config {
         , ((myModMask                , xK_j   ), focusUp)
         , ((myModMask                , xK_k   ), focusDown)
         , ((myModMask                , xK_z   ), focusMaster)
-        --, ((myModMask .|. shiftMask  , xK_e   ), shiftTo Next EmptyWS)
-        --, ((myModMask .|. controlMask, xK_e   ), moveTo Next EmptyWS)
         , ((myModMask                , xK_Tab ), toggleWS' ["NSP"])
         , ((myModMask .|. shiftMask  , xK_f   ), spawn "firefox")
         , ((myModMask                , xK_x   ), spawn "/usr/lib/kde4/libexec/kscreenlocker_greet --immediateLock")
