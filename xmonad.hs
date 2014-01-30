@@ -162,7 +162,7 @@ myLogHook = do
     removeBorderWhen (className =? "Kupfer.py")
     myDynamicLog
 
-main = xmonad $ withUrgencyHookC BorderUrgencyHook { urgencyBorderColor = "#ff00ff" } urgencyConfig { suppressWhen = Never } $ ewmh kde4Config {
+main = xmonad $ withUrgencyHookC BorderUrgencyHook { urgencyBorderColor = "#ff00ff" } urgencyConfig { suppressWhen = Focused } $ ewmh kde4Config {
         terminal           = myTerminal,
         focusFollowsMouse  = myFocusFollowsMouse,
         borderWidth        = myBorderWidth,
