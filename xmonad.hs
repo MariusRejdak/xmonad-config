@@ -64,6 +64,7 @@ myAppScratchpads =
     [ ((myModMask .|. shiftMask, xK_a), "ksysguard", "ksysguard", "ksysguard")
     , ((myModMask .|. shiftMask, xK_s), "krusader", "krusader", "krusader")
     , ((myModMask .|. shiftMask, xK_d), "cantata", "cantata", "cantata")
+    , ((myModMask, xK_grave), "kontact", "kontact", "kontact")
     ]
 
 scratchpads = [NS name command (appName =? thisAppName) floatingConf | (_,name,command,thisAppName) <- myAppScratchpads]
@@ -97,7 +98,7 @@ myManageHook =
     <+> (composeAll
         [ className =? "Pidgin"             --> doShift "2:im"
         , className =? "Firefox"            --> doShift "1:www"
-        , className =? "Chromium"            --> doShift "1:www"
+        , className =? "Chromium"           --> doShift "1:www"
         , className =? "Xmessage"           --> doFloat
         , className =? "Klipper"            --> doFloat
         , className =? "Knotes"             --> doFloat
@@ -124,7 +125,8 @@ myStartupHook = do
     spawn "pidgin"
     spawn "kupfer --no-splash"
     --spawnOn "1:www" "chromium"
-    spawnOn "9" "thunderbird"
+    --spawnOn "9" "thunderbird"
+    --spawnOn "9" "kontakt"
     spawn $ "sleep 2;" ++ myCompton
 
 myMouseBindings (XConfig {XMonad.modMask = modm}) = M.fromList $
