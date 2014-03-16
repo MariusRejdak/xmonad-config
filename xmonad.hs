@@ -49,16 +49,18 @@ myFocusedBorderColor = "#ff0000"
 myFloatBorderColor = "#00ff00"
 myCompton = "compton -b -f --backend glx --blur-background --vsync opengl --glx-use-gpushader4 -D 4 --sw-opti -e 1 -m 0.8 -G"
 
-myConsoleScratchpads = 
+myConsoleScratchpads =
     [ ((myModMask, xK_F1), "term1", "fish")
     , ((myModMask, xK_F2), "term2", "fish")
+    , ((myModMask, xK_F3), "term3", "fish")
+    , ((myModMask, xK_F4), "term4", "fish")
     , ((myModMask, xK_a ), "top", "htop")
     , ((myModMask, xK_s ), "mc", "mc")
     , ((myModMask, xK_d ), "mpd", "ncmpcpp")
     ]
 
 -- key name command appName
-myAppScratchpads = 
+myAppScratchpads =
     [ ((myModMask .|. shiftMask, xK_a), "ksysguard", "ksysguard", "ksysguard")
     , ((myModMask .|. shiftMask, xK_s), "krusader", "krusader", "krusader")
     , ((myModMask .|. shiftMask, xK_d), "cantata", "cantata", "cantata")
@@ -87,14 +89,15 @@ myLayout = onWorkspace "0:video" videoLayout $ onWorkspace "2:im" imLayout $ (ti
         delta   = 4/100
         videoLayout = noBorders Full ||| (avoidStruts . noBorders) Full
         imLayout = named "IM Grid" $ myLayoutMods $ reflectHoriz $ withIM (5%20) (Role "buddy_list") Grid
- 
-myManageHook = 
+
+myManageHook =
     composeOne [ isKDEOverride -?> doFloat ]
     <+> ((className =? "krunner") >>= return . not --> manageHook kde4Config)
     <+> manageSpawn
     <+> (composeAll
         [ className =? "Pidgin"             --> doShift "2:im"
         , className =? "Firefox"            --> doShift "1:www"
+        , className =? "Chromium"            --> doShift "1:www"
         , className =? "Xmessage"           --> doFloat
         , className =? "Klipper"            --> doFloat
         , className =? "Knotes"             --> doFloat
@@ -108,7 +111,7 @@ myManageHook =
         ] )
     <+> fullscreenManageHook
     <+> namedScratchpadManageHook scratchpads
- 
+
 myEventHook = mconcat [minimizeEventHook, fullscreenEventHook]
 
 myStartupHook = do
@@ -120,10 +123,10 @@ myStartupHook = do
     spawn "urxvtd"
     spawn "pidgin"
     spawn "kupfer --no-splash"
-    spawnOn "1:www" "firefox"
+    --spawnOn "1:www" "chromium"
     spawnOn "9" "thunderbird"
     spawn $ "sleep 2;" ++ myCompton
-        
+
 myMouseBindings (XConfig {XMonad.modMask = modm}) = M.fromList $
     [ ((modm              , button1), \w -> focus w >> windows W.shiftMaster >> mouseMoveWindow w >> snapMagicMove (Just 50) (Just 50) w)
     , ((modm              , button2), \w -> focus w >> snapMagicMouseResize 50 Nothing Nothing w)
@@ -195,7 +198,7 @@ main = xmonad $ withUrgencyHookC BorderUrgencyHook { urgencyBorderColor = "#ff00
         , ((myModMask                , xK_k   ), focusDown)
         , ((myModMask                , xK_z   ), focusMaster)
         , ((myModMask                , xK_Tab ), toggleWS' ["NSP"])
-        , ((myModMask .|. shiftMask  , xK_f   ), spawn "firefox")
+        , ((myModMask .|. shiftMask  , xK_f   ), spawn "chromium")
         , ((myModMask                , xK_x   ), spawn "/usr/lib/kde4/libexec/kscreenlocker_greet --immediateLock")
         , ((myModMask                , xK_r   ), spawn "kupfer")
         , ((myModMask .|. shiftMask  , xK_r   ), spawn "xprop | xmessage -file -") -- debugging stuff remove later
