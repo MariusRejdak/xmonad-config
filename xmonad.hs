@@ -98,6 +98,7 @@ myManageHook =
         [ className =? "Pidgin"             --> doShift "2:im"
         , className =? "Firefox"            --> doShift "1:www"
         , className =? "Chromium"           --> doShift "1:www"
+        , className =? "Kontact"            --> doShift "~:mail"
         , className =? "Xmessage"           --> doFloat
         , className =? "Klipper"            --> doFloat
         , className =? "Knotes"             --> doFloat
@@ -123,7 +124,7 @@ myStartupHook = do
     spawn "urxvtd"
     spawn "pidgin"
     spawn "kupfer --no-splash"
-    spawnOn "~:mail" "kontakt"
+    spawnOn "~:mail" "kontact"
     spawn $ "sleep 2;" ++ myCompton
 
 myMouseBindings (XConfig {XMonad.modMask = modm}) = M.fromList $
