@@ -188,17 +188,20 @@ main = xmonad $ withUrgencyHookC BorderUrgencyHook { urgencyBorderColor = "#ff00
         ]
 
     `additionalKeys` (
-        [ ((myModMask .|. shiftMask  , xK_q   ), spawn "xmonad --recompile && xmonad --restart")
-        , ((myModMask                , xK_m   ), withFocused minimizeWindow)
+        [ ((myModMask                , xK_m   ), withFocused minimizeWindow)
         , ((myModMask .|. shiftMask  , xK_m   ), sendMessage RestoreNextMinimizedWin)
         , ((myModMask                , xK_f   ), withFocused (sendMessage . maximizeRestore))
         , ((myModMask                , xK_w   ), nextScreen)
+        , ((myModMask .|. shiftMask  , xK_w   ), shiftNextScreen)
         , ((myModMask                , xK_e   ), swapNextScreen)
         , ((myModMask                , xK_j   ), focusUp)
         , ((myModMask                , xK_k   ), focusDown)
         , ((myModMask                , xK_z   ), focusMaster)
         , ((myModMask                , xK_Tab ), toggleWS' ["NSP"])
-        , ((myModMask .|. shiftMask  , xK_f   ), spawn "chromium")
+        , ((myModMask                , xK_q   ), spawn "chromium")
+        , ((myModMask .|. shiftMask  , xK_q   ), spawn "chromium --incognito")
+        --, ((myModMask .|. shiftMask  , xK_q   ), spawn "xmonad --recompile && xmonad --restart")
+        , ((myModMask .|. shiftMask  , xK_f   ), spawn "dolphin")
         , ((myModMask                , xK_x   ), spawn "/usr/lib/kde4/libexec/kscreenlocker_greet --immediateLock")
         , ((myModMask                , xK_r   ), spawn "kupfer")
         , ((myModMask .|. shiftMask  , xK_r   ), spawn "xprop | xmessage -file -") -- debugging stuff remove later
