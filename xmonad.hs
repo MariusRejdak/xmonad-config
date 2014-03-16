@@ -42,7 +42,7 @@ myTerminal          = "urxvtc"
 myFocusFollowsMouse = True
 myModMask           = mod4Mask
 myBorderWidth       = 2
-myWorkspaces        = ["1:www","2:im","3:misc"] ++ map show [4..9]
+myWorkspaces        = ["1:www","2:im","3:misc"] ++ map show [4..9] ++ ["~:mail"]
 myAddWorkspaces     = ["0:video", "NSP"]
 myNormalBorderColor  = "#aaaaaa"
 myFocusedBorderColor = "#ff0000"
@@ -64,7 +64,6 @@ myAppScratchpads =
     [ ((myModMask .|. shiftMask, xK_a), "ksysguard", "ksysguard", "ksysguard")
     , ((myModMask .|. shiftMask, xK_s), "krusader", "krusader", "krusader")
     , ((myModMask .|. shiftMask, xK_d), "cantata", "cantata", "cantata")
-    , ((myModMask, xK_grave), "kontact", "kontact", "kontact")
     ]
 
 scratchpads = [NS name command (appName =? thisAppName) floatingConf | (_,name,command,thisAppName) <- myAppScratchpads]
@@ -124,9 +123,7 @@ myStartupHook = do
     spawn "urxvtd"
     spawn "pidgin"
     spawn "kupfer --no-splash"
-    --spawnOn "1:www" "chromium"
-    --spawnOn "9" "thunderbird"
-    --spawnOn "9" "kontakt"
+    spawnOn "~:mail" "kontakt"
     spawn $ "sleep 2;" ++ myCompton
 
 myMouseBindings (XConfig {XMonad.modMask = modm}) = M.fromList $
@@ -208,6 +205,9 @@ main = xmonad $ withUrgencyHookC BorderUrgencyHook { urgencyBorderColor = "#ff00
         , ((myModMask                , xK_0   ), windows $ W.view "0:video")
         , ((myModMask .|. shiftMask  , xK_0   ), windows $ W.shift "0:video")
         , ((myModMask .|. controlMask, xK_0   ), windows $ W.greedyView "0:video")
+        , ((myModMask                , xK_grave), windows $ W.view "~:mail")
+        , ((myModMask .|. shiftMask  , xK_grave), windows $ W.shift "~:mail")
+        , ((myModMask .|. controlMask, xK_grave), windows $ W.greedyView "~:mail")
         ] ++ [(key, namedScratchpadAction scratchpads name) | (key,name,_) <- myConsoleScratchpads]
           ++ [(key, namedScratchpadAction scratchpads name) | (key,name,_,_) <- myAppScratchpads]
           ++ [((m .|. myModMask, k), windows $ f i) | (i, k) <- zip myWorkspaces [xK_1 .. xK_9], (f, m) <- [(W.view, 0), (W.shift, shiftMask)]]
