@@ -116,8 +116,7 @@ myBrowserQuery = (className =? "Chromium" <&&> appName /=? myHangoutsAppName) <|
 myPidginQuery = className =? "Pidgin"
 myHangoutsQuery = appName =? myHangoutsAppName
 
-myManageHook = manageSpawn
-    <+> composeOne [ isKDEOverride -?> doFloat ]
+myManageHook = composeOne [ isKDEOverride -?> doFloat ]
     <+> ((className =? "krunner") >>= return . not --> manageHook kde4Config)
     <+> (composeOne
         [ myPidginQuery                     -?> doShift (myImWorkspaces!!0)
@@ -128,7 +127,7 @@ myManageHook = manageSpawn
         , className =? "Xmessage"           -?> doFloat
         , className =? "Klipper"            -?> doFloat
         , className =? "Knotes"             -?> doFloat
-        , className =? "Smplayer"           -?> doShift (myWorkspaces!!9) <+> doSink
+        , className =? "smplayer"           -?> doShift (myWorkspaces!!9) <+> doSink
         , className =? "Vlc"                -?> doShift (myWorkspaces!!9) <+> doSink
         , className =? "Steam"              -?> doShift (myWorkspaces!!9) <+> doSink
         , className =? "MPlayer"            -?> doFullFloat
@@ -143,8 +142,6 @@ myManageHook = manageSpawn
 
 myEventHook = fullscreenEventHook
 
-editorStartHook = className =? "Subl3" --> doShift (myWorkspaces!!1)
-
 myStartupHook = do
     spawn "killall compton &"
     ewmhDesktopsStartup
@@ -157,7 +154,6 @@ myStartupHook = do
     spawn $ "sleep 2;" ++ myCompton
     spawn "thunderbird"
     spawn "chromium"
-    spawnAndDo editorStartHook myEditor
 
 myMouseBindings (XConfig {XMonad.modMask = modm}) = M.fromList $
     [ ((modm              , button1), \w -> focus w >> windows W.shiftMaster >> mouseMoveWindow w >> snapMagicMove (Just 50) (Just 50) w)
