@@ -96,8 +96,8 @@ myLayoutMods l = lessBorders OnlyFloat
         l
 
 myLayout = onWorkspace (myWorkspaces!!9) videoLayout
-    $ onWorkspace (myImWorkspaces!!0) imLayoutQ
-    $ onWorkspace (myImWorkspaces!!1) imLayoutE
+    $ onWorkspace (myImWorkspaces!!0) imLayoutP
+    $ onWorkspace (myImWorkspaces!!1) imLayoutH
     $ (tiledR ||| tiledB ||| tiledL ||| myTabbed ||| myFull)
     where
         tiledR = named "Tiled right" $ myLayoutMods $ Tall nmaster delta ratio
@@ -109,8 +109,8 @@ myLayout = onWorkspace (myWorkspaces!!9) videoLayout
         ratio   = 3/4
         delta   = 4/100
         videoLayout = named "Video Full" $ noBorders Full
-        imLayoutQ = named "IM Grid Pidgin" $ myLayoutMods $ reflectHoriz $ withIM (5%20) (Role "buddy_list") Grid
-        imLayoutE = named "IM Grid Hangouts" $ myLayoutMods $ reflectHoriz $ withIM (5%20) (And (Resource myHangoutsAppName) (Title "Hangouts")) Grid
+        imLayoutP = named "IM Grid Pidgin" $ myLayoutMods $ reflectHoriz $ withIM (5%20) (Role "buddy_list") Grid
+        imLayoutH = named "IM Grid Hangouts" $ myLayoutMods $ reflectHoriz $ withIM (5%20) (And (Resource myHangoutsAppName) (Title "Hangouts")) Grid
 
 myBrowserQuery = (className =? "Chromium" <&&> appName /=? myHangoutsAppName) <||> className =? "Firefox"
 myPidginQuery = className =? "Pidgin"
