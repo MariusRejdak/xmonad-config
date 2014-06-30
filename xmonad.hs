@@ -267,4 +267,7 @@ main = xmonad $ withUrgencyHookC BorderUrgencyHook { urgencyBorderColor = "#ff00
         , ("M-[", spawn "mpc prev")
         , ("M-<Page_Up>", spawn "mpc volume +2")
         , ("M-<Page_Down>", spawn "mpc volume -2")
+        , ("M-S-<Page_Up>", spawn "qdbus org.kde.kmix /kmix/KMixWindow/actions/increase_volume org.qtproject.Qt.QAction.trigger")
+        , ("M-S-<Page_Down>", spawn "qdbus org.kde.kmix /kmix/KMixWindow/actions/decrease_volume org.qtproject.Qt.QAction.trigger")
+        , ("M-S-<End>", spawn "qdbus org.kde.kmix /kmix/KMixWindow/actions/mute org.qtproject.Qt.QAction.trigger")
         ]
