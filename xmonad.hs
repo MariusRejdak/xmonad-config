@@ -39,23 +39,38 @@ import Codec.Binary.Base64.String as Base64
 import Utils
 
 myTerminal          = "urxvtc"
+myBrowser           = "chromium"
+myBrowserPriv       = "chromium --incognito"
+myFileManager       = "dolphin"
+myRunner            = "kupfer"
+myEditor            = "subl3"
 myFocusFollowsMouse = True
 myModMask           = mod4Mask
 myBorderWidth       = 2
-myWorkspaces        = ["1:www","2:im","3:misc"] ++ map show [4..9] ++ ["~:mail"]
-myAddWorkspaces     = ["0:video", "NSP"]
+myWorkspaces        = ["1:www", "2:subl", "3:fm", "4:misc"] ++ map show [5..9] ++ ["0:video"]
+myImWorkspaces      = ["z:im1", "x:im2"]
+myScratchpadWS      = "NSP"
+myMailWS            = "~:mail"
+
 myNormalBorderColor  = "#aaaaaa"
 myFocusedBorderColor = "#ff0000"
 myFloatBorderColor = "#00ff00"
 myHangoutsAppName = "crx_nckgahadagoaajjgafhacjanaoiihapd"
 myCompton = "compton -b -f --backend glx --blur-background --vsync opengl --glx-use-gpushader4 -D 4 --sw-opti -e 1 -m 0.8 -G"
+myLockCommand = "/usr/lib/kde4/libexec/kscreenlocker_greet --immediateLock"
+myInfoCommand = "sm -f white -b black \"\""
+
+myAddWorkspaces = myImWorkspaces ++ [myMailWS, myScratchpadWS]
+
+-- Skip workspaces on Left-Right switching
+skipWS = myWorkspaces!!9 : myAddWorkspaces
 
 myConsoleScratchpads =
     [ ((myModMask, xK_F1), "term1", "fish")
     , ((myModMask, xK_F2), "term2", "fish")
     , ((myModMask, xK_F3), "term3", "fish")
     , ((myModMask, xK_F4), "term4", "fish")
-    , ((myModMask, xK_F5), "bash", "bash")
+    , ((myModMask, xK_F5), "bash", "bash") -- backup shell
     , ((myModMask, xK_a ), "top", "htop")
     , ((myModMask, xK_s ), "mc", "mc")
     , ((myModMask, xK_d ), "mpd", "ncmpcpp")
@@ -65,7 +80,7 @@ myConsoleScratchpads =
 myAppScratchpads =
     [ ((myModMask .|. shiftMask, xK_a), "ksysguard", "ksysguard", "ksysguard")
     , ((myModMask .|. shiftMask, xK_s), "krusader", "krusader", "krusader")
-    , ((myModMask .|. shiftMask, xK_d), "cantata", "cantata", "cantata")
+    --, ((myModMask .|. shiftMask, xK_d), "cantata", "cantata", "cantata")
     ]
 
 scratchpads = [NS name command (appName =? thisAppName) floatingConf | (_,name,command,thisAppName) <- myAppScratchpads]
@@ -80,7 +95,10 @@ myLayoutMods l = lessBorders OnlyFloat
     $ maximize
         l
 
-myLayout = onWorkspace "0:video" videoLayout $ onWorkspace "2:im" imLayout $ (tiledR ||| tiledB ||| tiledL ||| myTabbed ||| myFull)
+myLayout = onWorkspace (myWorkspaces!!9) videoLayout
+    $ onWorkspace (myImWorkspaces!!0) imLayoutQ
+    $ onWorkspace (myImWorkspaces!!1) imLayoutE
+    $ (tiledR ||| tiledB ||| tiledL ||| myTabbed ||| myFull)
     where
         tiledR = named "Tiled right" $ myLayoutMods $ Tall nmaster delta ratio
         tiledL = named "Tiled left" $ myLayoutMods $ reflectHoriz $ Tall nmaster delta ratio
@@ -91,26 +109,28 @@ myLayout = onWorkspace "0:video" videoLayout $ onWorkspace "2:im" imLayout $ (ti
         ratio   = 3/4
         delta   = 4/100
         videoLayout = named "Video Full" $ noBorders Full
-        imLayout = named "IM Grid" $ myLayoutMods $ reflectHoriz $ withIM (5%20) (Or (Role "buddy_list") (And (Resource myHangoutsAppName) (Title "Hangouts"))) Grid
+        imLayoutQ = named "IM Grid Pidgin" $ myLayoutMods $ reflectHoriz $ withIM (5%20) (Role "buddy_list") Grid
+        imLayoutE = named "IM Grid Hangouts" $ myLayoutMods $ reflectHoriz $ withIM (5%20) (And (Resource myHangoutsAppName) (Title "Hangouts")) Grid
 
 myBrowserQuery = (className =? "Chromium" <&&> appName /=? myHangoutsAppName) <||> className =? "Firefox"
-myChatQuery = className =? "Pidgin" <||> appName =? myHangoutsAppName
+myPidginQuery = className =? "Pidgin"
+myHangoutsQuery = appName =? myHangoutsAppName
 
-myManageHook =
-    composeOne [ isKDEOverride -?> doFloat ]
+myManageHook = manageSpawn
+    <+> composeOne [ isKDEOverride -?> doFloat ]
     <+> ((className =? "krunner") >>= return . not --> manageHook kde4Config)
-    <+> manageSpawn
     <+> (composeOne
-        [ myChatQuery                       -?> doShift "2:im"
-        , myBrowserQuery                    -?> doShift "1:www"
-        , className =? "Kontact"            -?> doShift "~:mail"
-        , className =? "Thunderbird"        -?> doShift "~:mail"
+        [ myPidginQuery                     -?> doShift (myImWorkspaces!!0)
+        , myHangoutsQuery                   -?> doShift (myImWorkspaces!!1)
+        , myBrowserQuery                    -?> doShift (myWorkspaces!!0)
+        , className =? "Kontact"            -?> doShift myMailWS
+        , className =? "Thunderbird"        -?> doShift myMailWS
         , className =? "Xmessage"           -?> doFloat
         , className =? "Klipper"            -?> doFloat
         , className =? "Knotes"             -?> doFloat
-        , className =? "Smplayer"           -?> doShift "0:video" <+> doSink
-        , className =? "Vlc"                -?> doShift "0:video" <+> doSink
-        , className =? "Steam"              -?> doShift "0:video" <+> doSink
+        , className =? "Smplayer"           -?> doShift (myWorkspaces!!9) <+> doSink
+        , className =? "Vlc"                -?> doShift (myWorkspaces!!9) <+> doSink
+        , className =? "Steam"              -?> doShift (myWorkspaces!!9) <+> doSink
         , className =? "MPlayer"            -?> doFullFloat
         , className =? "Sm"                 -?> doFullFloat
         ] )
@@ -123,6 +143,8 @@ myManageHook =
 
 myEventHook = fullscreenEventHook
 
+editorStartHook = className =? "Subl3" --> doShift (myWorkspaces!!1)
+
 myStartupHook = do
     spawn "killall compton &"
     ewmhDesktopsStartup
@@ -132,8 +154,10 @@ myStartupHook = do
     spawn "urxvtd"
     spawn "pidgin"
     spawn "kupfer --no-splash"
-    spawnOn "~:mail" "thunderbird"
     spawn $ "sleep 2;" ++ myCompton
+    spawn "thunderbird"
+    spawn "chromium"
+    spawnAndDo editorStartHook myEditor
 
 myMouseBindings (XConfig {XMonad.modMask = modm}) = M.fromList $
     [ ((modm              , button1), \w -> focus w >> windows W.shiftMaster >> mouseMoveWindow w >> snapMagicMove (Just 50) (Just 50) w)
@@ -190,38 +214,50 @@ main = xmonad $ withUrgencyHookC BorderUrgencyHook { urgencyBorderColor = "#ff00
     }
 
     `removeKeys`
-        [ (myModMask              , xK_q     )
-        , (myModMask              , xK_Tab   )
-        , (myModMask              , xK_p     )
-        , (myModMask .|. shiftMask, xK_e     )
+        [ (myModMask              , xK_p     )
+        , (myModMask .|. shiftMask, xK_p     )
+        , (myModMask .|. shiftMask, xK_f     )
         ]
 
     `additionalKeys` (
-        [ ((myModMask                , xK_f   ), withFocused (sendMessage . maximizeRestore))
+        [ ((myModMask .|. shiftMask  , xK_Return), spawn myTerminal)
+        , ((myModMask .|. shiftMask  , xK_KP_Enter), spawn myTerminal)
+        , ((myModMask                , xK_f   ), withFocused (sendMessage . maximizeRestore))
         , ((myModMask                , xK_w   ), nextScreen)
-        , ((myModMask .|. shiftMask  , xK_w   ), shiftNextScreen)
-        , ((myModMask                , xK_e   ), swapNextScreen)
+        , ((myModMask .|. shiftMask  , xK_w   ), swapNextScreen)
         , ((myModMask                , xK_j   ), focusUp)
         , ((myModMask                , xK_k   ), focusDown)
-        , ((myModMask                , xK_z   ), focusMaster)
-        , ((myModMask                , xK_Tab ), toggleWS' ["NSP"])
-        , ((myModMask                , xK_q   ), spawn "chromium")
-        , ((myModMask .|. shiftMask  , xK_q   ), spawn "chromium --incognito")
-        , ((myModMask .|. shiftMask  , xK_f   ), spawn "dolphin")
-        , ((myModMask                , xK_x   ), spawn "/usr/lib/kde4/libexec/kscreenlocker_greet --immediateLock")
-        , ((myModMask                , xK_r   ), spawn "kupfer")
-        , ((myModMask .|. shiftMask  , xK_r   ), spawn "xprop | xmessage -file -") -- debugging stuff remove later
-        , ((myModMask .|. shiftMask  , xK_i   ), spawn "sm -f white -b black \"\"")
-        , ((myModMask                , xK_0   ), windows $ W.view "0:video")
-        , ((myModMask .|. shiftMask  , xK_0   ), windows $ W.shift "0:video")
-        , ((myModMask .|. controlMask, xK_0   ), windows $ W.greedyView "0:video")
-        , ((myModMask                , xK_grave), windows $ W.view "~:mail")
-        , ((myModMask .|. shiftMask  , xK_grave), windows $ W.shift "~:mail")
-        , ((myModMask .|. controlMask, xK_grave), windows $ W.greedyView "~:mail")
+        , ((myModMask                , xK_Up  ), focusUp)
+        , ((myModMask                , xK_Down), focusDown)
+        , ((myModMask .|. shiftMask  , xK_Up  ), windows W.swapUp)
+        , ((myModMask .|. shiftMask  , xK_Down), windows W.swapDown)
+        , ((myModMask                , xK_Tab ), toggleWS' [myScratchpadWS])
+        , ((myModMask .|. shiftMask  , xK_Tab ), shiftToggleWS' [myScratchpadWS] >> toggleWS' [myScratchpadWS])
+        , ((myModMask                , xK_Left ), viewPrevWS skipWS)
+        , ((myModMask                , xK_Right), viewNextWS skipWS)
+        , ((myModMask .|. shiftMask  , xK_Left ), shiftPrevWS skipWS >> viewPrevWS skipWS)
+        , ((myModMask .|. shiftMask  , xK_Right), shiftNextWS skipWS >> viewNextWS skipWS)
+        , ((myModMask                , xK_q   ), spawn myBrowser)
+        , ((myModMask .|. shiftMask  , xK_q   ), spawn myBrowserPriv)
+        , ((myModMask                , xK_e   ), spawn myFileManager)
+        , ((myModMask .|. shiftMask  , xK_e   ), spawn myEditor)
+        , ((noModMask                , xK_Scroll_Lock), spawn myLockCommand)
+        , ((myModMask                , xK_r   ), spawn myRunner)
+        , ((myModMask .|. shiftMask  , xK_r   ), spawn "xprop | xmessage -file -") -- debugging stuff
+        , ((myModMask                , xK_i   ), spawn myInfoCommand)
+        , ((myModMask                , xK_grave), windows $ W.view myMailWS)
+        , ((myModMask .|. shiftMask  , xK_grave), windows $ W.shift myMailWS)
+        , ((myModMask .|. controlMask, xK_grave), windows $ W.greedyView myMailWS)
+        , ((myModMask                , xK_z), windows $ W.view $ myImWorkspaces!!0)
+        , ((myModMask .|. shiftMask  , xK_z), windows $ W.shift $ myImWorkspaces!!0)
+        , ((myModMask .|. controlMask, xK_z), windows $ W.greedyView $ myImWorkspaces!!0)
+        , ((myModMask                , xK_x), windows $ W.view $ myImWorkspaces!!1)
+        , ((myModMask .|. shiftMask  , xK_x), windows $ W.shift $ myImWorkspaces!!1)
+        , ((myModMask .|. controlMask, xK_x), windows $ W.greedyView $ myImWorkspaces!!1)
         ] ++ [(key, namedScratchpadAction scratchpads name) | (key,name,_) <- myConsoleScratchpads]
           ++ [(key, namedScratchpadAction scratchpads name) | (key,name,_,_) <- myAppScratchpads]
-          ++ [((m .|. myModMask, k), windows $ f i) | (i, k) <- zip myWorkspaces [xK_1 .. xK_9], (f, m) <- [(W.view, 0), (W.shift, shiftMask)]]
-          ++ [((controlMask .|. myModMask, k), windows $ W.greedyView i) | (i, k) <- zip myWorkspaces [xK_1 .. xK_9]]
+          ++ [((m .|. myModMask, k), windows $ f i) | (i, k) <- zip myWorkspaces $ [xK_1 .. xK_9] ++ [xK_0], (f, m) <- [(W.view, 0), (W.shift, shiftMask)]]
+          ++ [((controlMask .|. myModMask, k), windows $ W.greedyView i) | (i, k) <- zip myWorkspaces $ [xK_1 .. xK_9] ++ [xK_0]]
     )
 
     `additionalKeysP`
@@ -229,4 +265,10 @@ main = xmonad $ withUrgencyHookC BorderUrgencyHook { urgencyBorderColor = "#ff00
         , ("<XF86AudioStop>", spawn "mpc stop")
         , ("<XF86AudioNext>", spawn "mpc next")
         , ("<XF86AudioPrev>", spawn "mpc prev")
+        , ("M-<Home>", spawn "mpc toggle")
+        , ("M-<End>", spawn "mpc stop")
+        , ("M-]", spawn "mpc next")
+        , ("M-[", spawn "mpc prev")
+        , ("M-<Page_Up>", spawn "mpc volume +2")
+        , ("M-<Page_Down>", spawn "mpc volume -2")
         ]

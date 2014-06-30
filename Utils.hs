@@ -6,10 +6,13 @@ import XMonad
 import qualified XMonad.StackSet as W
 import qualified Data.Map as M
 import XMonad.ManageHook
-import XMonad.Hooks.ManageHelpers
+import XMonad.Actions.CycleWS
+import XMonad.Hooks.ManageHelpers (isInProperty, isFullscreen)
+import XMonad.Util.Scratchpad (scratchpadFilterOutWorkspace)
+import XMonad.Util.WorkspaceCompare (getSortByIndex, WorkspaceSort)
 import Data.Monoid
 
-import Control.Monad (when)
+import Control.Monad (when, unless)
 import Control.Concurrent (threadDelay)
 import System.Process (readProcess, runInteractiveCommand, waitForProcess)
 import System.IO
@@ -50,3 +53,43 @@ isKDEOverride = do
     isover <- isInProperty "_NET_WM_WINDOW_TYPE" "_KDE_NET_WM_WINDOW_TYPE_OVERRIDE"
     isfs <- isFullscreen
     return $! isover && (not isfs)
+
+-- | Switch to next hidden workspace
+switchWsNoSP :: [WorkspaceId] -> Int -> X ()
+switchWsNoSP list d = do
+    ws <- findWorkspace (getSortByIndexNoSP list) Next HiddenWS d
+    windows . W.view $ ws
+
+-- | Shift window to next hidden workspace
+shiftWsNoSP :: [WorkspaceId] -> Int -> X ()
+shiftWsNoSP list d = do
+    ws <- findWorkspace (getSortByIndexNoSP list) Next HiddenWS d
+    windows . W.shift $ ws
+
+-- | Shift window to workspace displayed previously
+shiftToggleWS' :: [WorkspaceId] -> X ()
+shiftToggleWS' skips = do
+    hs' <- cleanHiddens skips
+    unless (null hs') (windows . W.shift . W.tag $ head hs')
+    where
+        -- | Copied from XMonad.Actions.CycleWS
+        cleanHiddens :: [WorkspaceId] -> X [WindowSpace]
+        cleanHiddens skips =  gets $ (flip skipTags) skips . W.hidden . windowset
+
+viewNextWS :: [WorkspaceId] -> X ()
+viewNextWS l = switchWsNoSP l 1
+
+viewPrevWS :: [WorkspaceId] -> X ()
+viewPrevWS l = switchWsNoSP l (-1)
+
+shiftNextWS :: [WorkspaceId] -> X ()
+shiftNextWS l = shiftWsNoSP l 1
+
+shiftPrevWS :: [WorkspaceId] -> X ()
+shiftPrevWS l = shiftWsNoSP l (-1)
+
+-- | Get workspaces without listed ones
+getSortByIndexNoSP :: [WorkspaceId] -> X WorkspaceSort
+getSortByIndexNoSP list = fmap (. filterOutWorkspaceList list) getSortByIndex
+    where
+        filterOutWorkspaceList list = filter (\(W.Workspace tag _ _) -> not $ tag `elem` list)
