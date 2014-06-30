@@ -18,11 +18,11 @@ import XMonad.Layout.Fullscreen hiding (fullscreenEventHook)
 import XMonad.Layout.Grid
 import XMonad.Layout.IM
 import XMonad.Layout.Maximize
-import XMonad.Layout.Minimize
 import XMonad.Layout.Named
 import XMonad.Layout.NoBorders hiding (Never)
 import XMonad.Layout.PerWorkspace
 import XMonad.Layout.Reflect
+import XMonad.Layout.Tabbed (simpleTabbed)
 import XMonad.Util.EZConfig
 import XMonad.Util.NamedScratchpad
 
@@ -47,6 +47,7 @@ myAddWorkspaces     = ["0:video", "NSP"]
 myNormalBorderColor  = "#aaaaaa"
 myFocusedBorderColor = "#ff0000"
 myFloatBorderColor = "#00ff00"
+myHangoutsAppName = "crx_nckgahadagoaajjgafhacjanaoiihapd"
 myCompton = "compton -b -f --backend glx --blur-background --vsync opengl --glx-use-gpushader4 -D 4 --sw-opti -e 1 -m 0.8 -G"
 
 myConsoleScratchpads =
@@ -54,6 +55,7 @@ myConsoleScratchpads =
     , ((myModMask, xK_F2), "term2", "fish")
     , ((myModMask, xK_F3), "term3", "fish")
     , ((myModMask, xK_F4), "term4", "fish")
+    , ((myModMask, xK_F5), "bash", "bash")
     , ((myModMask, xK_a ), "top", "htop")
     , ((myModMask, xK_s ), "mc", "mc")
     , ((myModMask, xK_d ), "mpd", "ncmpcpp")
@@ -76,44 +78,50 @@ myLayoutMods l = lessBorders OnlyFloat
     $ desktopLayoutModifiers
     $ boringWindows
     $ maximize
-    $ minimize
         l
 
-myLayout = onWorkspace "0:video" videoLayout $ onWorkspace "2:im" imLayout $ (tiledR ||| tiledL ||| tiledB)
+myLayout = onWorkspace "0:video" videoLayout $ onWorkspace "2:im" imLayout $ (tiledR ||| tiledB ||| tiledL ||| myTabbed ||| myFull)
     where
         tiledR = named "Tiled right" $ myLayoutMods $ Tall nmaster delta ratio
         tiledL = named "Tiled left" $ myLayoutMods $ reflectHoriz $ Tall nmaster delta ratio
         tiledB = named "Tiled bottom" $ myLayoutMods $ Mirror $ Tall nmaster delta ratio
+        myTabbed = named "Tabbed" $ myLayoutMods $ simpleTabbed
+        myFull = named "Full" $ myLayoutMods $ Full
         nmaster = 1
         ratio   = 3/4
         delta   = 4/100
-        videoLayout = noBorders Full ||| (avoidStruts . noBorders) Full
-        imLayout = named "IM Grid" $ myLayoutMods $ reflectHoriz $ withIM (5%20) (Role "buddy_list") Grid
+        videoLayout = named "Video Full" $ noBorders Full
+        imLayout = named "IM Grid" $ myLayoutMods $ reflectHoriz $ withIM (5%20) (Or (Role "buddy_list") (And (Resource myHangoutsAppName) (Title "Hangouts"))) Grid
+
+myBrowserQuery = (className =? "Chromium" <&&> appName /=? myHangoutsAppName) <||> className =? "Firefox"
+myChatQuery = className =? "Pidgin" <||> appName =? myHangoutsAppName
 
 myManageHook =
     composeOne [ isKDEOverride -?> doFloat ]
     <+> ((className =? "krunner") >>= return . not --> manageHook kde4Config)
     <+> manageSpawn
+    <+> (composeOne
+        [ myChatQuery                       -?> doShift "2:im"
+        , myBrowserQuery                    -?> doShift "1:www"
+        , className =? "Kontact"            -?> doShift "~:mail"
+        , className =? "Thunderbird"        -?> doShift "~:mail"
+        , className =? "Xmessage"           -?> doFloat
+        , className =? "Klipper"            -?> doFloat
+        , className =? "Knotes"             -?> doFloat
+        , className =? "Smplayer"           -?> doShift "0:video" <+> doSink
+        , className =? "Vlc"                -?> doShift "0:video" <+> doSink
+        , className =? "Steam"              -?> doShift "0:video" <+> doSink
+        , className =? "MPlayer"            -?> doFullFloat
+        , className =? "Sm"                 -?> doFullFloat
+        ] )
     <+> (composeAll
-        [ className =? "Pidgin"             --> doShift "2:im"
-        , className =? "Firefox"            --> doShift "1:www"
-        , className =? "Chromium"           --> doShift "1:www"
-        , className =? "Kontact"            --> doShift "~:mail"
-        , className =? "Xmessage"           --> doFloat
-        , className =? "Klipper"            --> doFloat
-        , className =? "Knotes"             --> doFloat
-        , className =? "Smplayer"           --> doShift "0:video" <+> doSink
-        , className =? "Vlc"                --> doShift "0:video" <+> doSink
-        , className =? "Steam"              --> doShift "0:video" <+> doSink
-        , className =? "MPlayer"            --> doFullFloat
-        , className =? "Sm"                 --> doFullFloat
-        , isDialog                          --> doCenterFloat
+        [ isDialog                          --> doCenterFloat
         , isKDETrayWindow                   --> doIgnore
         ] )
     <+> fullscreenManageHook
     <+> namedScratchpadManageHook scratchpads
 
-myEventHook = mconcat [minimizeEventHook, fullscreenEventHook]
+myEventHook = fullscreenEventHook
 
 myStartupHook = do
     spawn "killall compton &"
@@ -124,7 +132,7 @@ myStartupHook = do
     spawn "urxvtd"
     spawn "pidgin"
     spawn "kupfer --no-splash"
-    spawnOn "~:mail" "kontact"
+    spawnOn "~:mail" "thunderbird"
     spawn $ "sleep 2;" ++ myCompton
 
 myMouseBindings (XConfig {XMonad.modMask = modm}) = M.fromList $
@@ -185,12 +193,11 @@ main = xmonad $ withUrgencyHookC BorderUrgencyHook { urgencyBorderColor = "#ff00
         [ (myModMask              , xK_q     )
         , (myModMask              , xK_Tab   )
         , (myModMask              , xK_p     )
+        , (myModMask .|. shiftMask, xK_e     )
         ]
 
     `additionalKeys` (
-        [ ((myModMask                , xK_m   ), withFocused minimizeWindow)
-        , ((myModMask .|. shiftMask  , xK_m   ), sendMessage RestoreNextMinimizedWin)
-        , ((myModMask                , xK_f   ), withFocused (sendMessage . maximizeRestore))
+        [ ((myModMask                , xK_f   ), withFocused (sendMessage . maximizeRestore))
         , ((myModMask                , xK_w   ), nextScreen)
         , ((myModMask .|. shiftMask  , xK_w   ), shiftNextScreen)
         , ((myModMask                , xK_e   ), swapNextScreen)
@@ -200,7 +207,6 @@ main = xmonad $ withUrgencyHookC BorderUrgencyHook { urgencyBorderColor = "#ff00
         , ((myModMask                , xK_Tab ), toggleWS' ["NSP"])
         , ((myModMask                , xK_q   ), spawn "chromium")
         , ((myModMask .|. shiftMask  , xK_q   ), spawn "chromium --incognito")
-        --, ((myModMask .|. shiftMask  , xK_q   ), spawn "xmonad --recompile && xmonad --restart")
         , ((myModMask .|. shiftMask  , xK_f   ), spawn "dolphin")
         , ((myModMask                , xK_x   ), spawn "/usr/lib/kde4/libexec/kscreenlocker_greet --immediateLock")
         , ((myModMask                , xK_r   ), spawn "kupfer")
