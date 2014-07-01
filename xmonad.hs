@@ -1,10 +1,8 @@
 import XMonad
 import qualified XMonad.StackSet as W
 import XMonad.Actions.CycleWS
-import XMonad.Actions.DynamicWorkspaces
 import qualified XMonad.Actions.FlexibleManipulate as Flex
 import XMonad.Actions.FloatSnap
-import XMonad.Actions.SpawnOn
 import XMonad.Config.Kde
 import XMonad.Config.Desktop
 import XMonad.Hooks.EwmhDesktops
@@ -14,6 +12,7 @@ import XMonad.Hooks.Minimize
 import XMonad.Hooks.SetWMName
 import XMonad.Hooks.UrgencyHook
 import XMonad.Layout.BoringWindows
+import XMonad.Layout.Decoration (defaultTheme, Theme (..))
 import XMonad.Layout.Fullscreen hiding (fullscreenEventHook)
 import XMonad.Layout.Grid
 import XMonad.Layout.IM
@@ -22,7 +21,8 @@ import XMonad.Layout.Named
 import XMonad.Layout.NoBorders hiding (Never)
 import XMonad.Layout.PerWorkspace
 import XMonad.Layout.Reflect
-import XMonad.Layout.Tabbed (simpleTabbed)
+import XMonad.Layout.SimpleDecoration (shrinkText)
+import XMonad.Layout.Tabbed (tabbedAlways, tabbed, addTabsAlways)
 import XMonad.Util.EZConfig
 import XMonad.Util.NamedScratchpad
 
@@ -80,7 +80,7 @@ myConsoleScratchpads =
 myAppScratchpads =
     [ ((myModMask .|. shiftMask, xK_a), "ksysguard", "ksysguard", "ksysguard")
     , ((myModMask .|. shiftMask, xK_s), "krusader", "krusader", "krusader")
-    --, ((myModMask .|. shiftMask, xK_d), "cantata", "cantata", "cantata")
+    , ((myModMask .|. shiftMask, xK_d), "kmix", "kmix", "kmix")
     ]
 
 scratchpads = [NS name command (appName =? thisAppName) floatingConf | (_,name,command,thisAppName) <- myAppScratchpads]
@@ -98,19 +98,51 @@ myLayoutMods l = lessBorders OnlyFloat
 myLayout = onWorkspace (myWorkspaces!!9) videoLayout
     $ onWorkspace (myImWorkspaces!!0) imLayoutP
     $ onWorkspace (myImWorkspaces!!1) imLayoutH
-    $ (tiledR ||| tiledB ||| tiledL ||| myTabbed ||| myFull)
+    $ (tiledR ||| tiledB ||| tiledL ||| myTabbed ||| myGrid ||| myFull)
     where
         tiledR = named "Tiled right" $ myLayoutMods $ Tall nmaster delta ratio
         tiledL = named "Tiled left" $ myLayoutMods $ reflectHoriz $ Tall nmaster delta ratio
         tiledB = named "Tiled bottom" $ myLayoutMods $ Mirror $ Tall nmaster delta ratio
-        myTabbed = named "Tabbed" $ myLayoutMods $ simpleTabbed
+        myTabbed = named "Tabbed" $ myLayoutMods $ tabbedAlways shrinkText myTheme
+        myGrid = named "Grid" $ myLayoutMods $ Grid
         myFull = named "Full" $ myLayoutMods $ Full
+
+        videoLayout = named "Video Full" $ noBorders Full
+        imLayoutP = (imLayoutTemplate "IM Tabbed Pidgin" pidginImProperty Grid)
+                ||| (imLayoutTemplate "IM Tiled B Pidgin" pidginImProperty tiledB)
+                ||| (imLayoutTemplate "IM Tiled R Pidgin" pidginImProperty tiledR)
+        imLayoutH = (imLayoutTemplate "IM Tiled B Hangouts" hangoutsImProperty $ addTabsAlways shrinkText myTheme tiledB)
+                ||| (imLayoutTemplate "IM Tiled R Hangouts" hangoutsImProperty $ addTabsAlways shrinkText myTheme tiledR)
+                ||| (imLayoutTemplate "IM Grid Hangouts" hangoutsImProperty $ addTabsAlways shrinkText myTheme Grid)
+
+        imLayoutTemplate name property layout = named name $ myLayoutMods $ reflectHoriz $ withIM imRatio property layout
+        pidginImProperty = Resource "Pidgin" `And` Role "buddy_list"
+        hangoutsImProperty = Resource myHangoutsAppName `And` Title "Hangouts" `And` Role "buddy_list"
+        imRatio = 5%20
         nmaster = 1
         ratio   = 3/4
         delta   = 4/100
-        videoLayout = named "Video Full" $ noBorders Full
-        imLayoutP = named "IM Grid Pidgin" $ myLayoutMods $ reflectHoriz $ withIM (5%20) (Role "buddy_list") Grid
-        imLayoutH = named "IM Grid Hangouts" $ myLayoutMods $ reflectHoriz $ withIM (5%20) (And (Resource myHangoutsAppName) (Title "Hangouts")) Grid
+
+        myLayoutMods l = lessBorders OnlyFloat
+            $ fullscreenFull
+            $ desktopLayoutModifiers
+            $ boringWindows
+            $ maximize
+                l
+
+        myTheme = defaultTheme {
+            activeColor         = "#DADCDE",
+            inactiveColor       = "#B6B9BE",
+            urgentColor         = "#FFFF00",
+            activeBorderColor   = "#FF0000",
+            inactiveBorderColor = "#AAAAAA",
+            urgentBorderColor   = "#FF00FF",
+            activeTextColor     = "#000000",
+            inactiveTextColor   = "#000000",
+            urgentTextColor     = "#000000",
+            fontName            = "-*-arial-bold-r-normal--*-100-*-*-*-*-*-*",
+            decoHeight          = 25
+        }
 
 myBrowserQuery = (className =? "Chromium" <&&> appName /=? myHangoutsAppName) <||> className =? "Firefox"
 myPidginQuery = className =? "Pidgin"
@@ -240,6 +272,7 @@ main = xmonad $ withUrgencyHookC BorderUrgencyHook { urgencyBorderColor = "#ff00
         , ((noModMask                , xK_Scroll_Lock), spawn myLockCommand)
         , ((myModMask                , xK_r   ), spawn myRunner)
         , ((myModMask .|. shiftMask  , xK_r   ), spawn "xprop | xmessage -file -") -- debugging stuff
+        --, ((myModMask .|. shiftMask  , xK_p   ), restart "xmonad" True) -- don't work
         , ((myModMask                , xK_i   ), spawn myInfoCommand)
         , ((myModMask                , xK_grave), windows $ W.view myMailWS)
         , ((myModMask .|. shiftMask  , xK_grave), windows $ W.shift myMailWS)
@@ -270,4 +303,5 @@ main = xmonad $ withUrgencyHookC BorderUrgencyHook { urgencyBorderColor = "#ff00
         , ("M-S-<Page_Up>", spawn "qdbus org.kde.kmix /kmix/KMixWindow/actions/increase_volume org.qtproject.Qt.QAction.trigger")
         , ("M-S-<Page_Down>", spawn "qdbus org.kde.kmix /kmix/KMixWindow/actions/decrease_volume org.qtproject.Qt.QAction.trigger")
         , ("M-S-<End>", spawn "qdbus org.kde.kmix /kmix/KMixWindow/actions/mute org.qtproject.Qt.QAction.trigger")
+        , ("M-<F6>", spawn "xdotool search --name \"Hangouts\" set_window --role \"buddy_list\"")
         ]

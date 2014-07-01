@@ -7,6 +7,7 @@ import qualified XMonad.StackSet as W
 import qualified Data.Map as M
 import XMonad.ManageHook
 import XMonad.Actions.CycleWS
+import XMonad.Util.WindowProperties (Property(..), propertyToQuery)
 import XMonad.Hooks.ManageHelpers (isInProperty, isFullscreen)
 import XMonad.Util.Scratchpad (scratchpadFilterOutWorkspace)
 import XMonad.Util.WorkspaceCompare (getSortByIndex, WorkspaceSort)
