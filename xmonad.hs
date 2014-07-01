@@ -26,15 +26,8 @@ import XMonad.Layout.Tabbed (tabbedAlways, tabbed, addTabsAlways)
 import XMonad.Util.EZConfig
 import XMonad.Util.NamedScratchpad
 
-import XMonad.Hooks.DynamicLog
-import XMonad.Util.WorkspaceCompare (getSortByIndex, getSortByXineramaRule)
-
 import Data.Ratio ((%))
-import Data.Monoid (mconcat)
 import qualified Data.Map as M
-
-import Codec.Binary.UTF8.String
-import Codec.Binary.Base64.String as Base64
 
 import Utils
 
@@ -196,27 +189,6 @@ myMouseBindings (XConfig {XMonad.modMask = modm}) = M.fromList $
     , ((modm              , button5), \_ -> focusDown)
     , ((modm .|. shiftMask, button5), \_ -> windows $ W.swapDown)
     ]
-
-myDynamicLog :: X ()
-myDynamicLog = do
-    dynamicLogString (namedScratchpadFilterOutWorkspacePP myPP) >>= \w -> spawn $ "dbus-send --type=\"method_call\" --dest=org.xmonad.LogService /Log org.xmonad.Log.msg string:\""++(Base64.encode w)++"\""
-
-myPP :: PP
-myPP = PP { ppCurrent         = wrap "[[c]]" ""
-          , ppVisible         = wrap "[[v]]" ""
-          , ppHidden          = id
-          , ppHiddenNoWindows = const ""
-          , ppUrgent          = wrap "[[u]]" ""
-          , ppSep             = "[[|]]"
-          , ppWsSep           = "[[|]]"
-          , ppTitle           = shorten 160
-          , ppTitleSanitize   = wrap "[[t]]" ""
-          , ppLayout          = wrap "[[l]]" ""
-          , ppOrder           = id
-          , ppOutput          = putStrLn
-          , ppSort            = getSortByXineramaRule
-          , ppExtras          = []
-        }
 
 myLogHook = do
     colorBorderWhen isFloat myFloatBorderColor

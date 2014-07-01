@@ -7,16 +7,19 @@ import qualified XMonad.StackSet as W
 import qualified Data.Map as M
 import XMonad.ManageHook
 import XMonad.Actions.CycleWS
-import XMonad.Util.WindowProperties (Property(..), propertyToQuery)
+import XMonad.Hooks.DynamicLog
 import XMonad.Hooks.ManageHelpers (isInProperty, isFullscreen)
-import XMonad.Util.Scratchpad (scratchpadFilterOutWorkspace)
-import XMonad.Util.WorkspaceCompare (getSortByIndex, WorkspaceSort)
+import XMonad.Util.NamedScratchpad (namedScratchpadFilterOutWorkspacePP)
+import XMonad.Util.WorkspaceCompare (getSortByIndex, WorkspaceSort, getSortByXineramaRule)
+
 import Data.Monoid
 
 import Control.Monad (when, unless)
 import Control.Concurrent (threadDelay)
 import System.Process (readProcess, runInteractiveCommand, waitForProcess)
 import System.IO
+import Codec.Binary.UTF8.String
+import Codec.Binary.Base64.String as Base64
 
 
 doSink :: Query (Endo WindowSet)
@@ -94,3 +97,26 @@ getSortByIndexNoSP :: [WorkspaceId] -> X WorkspaceSort
 getSortByIndexNoSP list = fmap (. filterOutWorkspaceList list) getSortByIndex
     where
         filterOutWorkspaceList list = filter (\(W.Workspace tag _ _) -> not $ tag `elem` list)
+
+-- | Dynamic log for xmonad-log-plasmoid
+myDynamicLog :: X ()
+myDynamicLog = do
+    dynamicLogString (namedScratchpadFilterOutWorkspacePP myPP) >>= \w -> spawn $ "dbus-send --type=\"method_call\" --dest=org.xmonad.LogService /Log org.xmonad.Log.msg string:\""++(Base64.encode w)++"\""
+
+-- | Pretty printer for myDynamicLog
+myPP :: PP
+myPP = PP { ppCurrent         = wrap "[[c]]" ""
+          , ppVisible         = wrap "[[v]]" ""
+          , ppHidden          = id
+          , ppHiddenNoWindows = const ""
+          , ppUrgent          = wrap "[[u]]" ""
+          , ppSep             = "[[|]]"
+          , ppWsSep           = "[[|]]"
+          , ppTitle           = shorten 160
+          , ppTitleSanitize   = wrap "[[t]]" ""
+          , ppLayout          = wrap "[[l]]" ""
+          , ppOrder           = id
+          , ppOutput          = putStrLn
+          , ppSort            = getSortByXineramaRule
+          , ppExtras          = []
+        }
