@@ -50,6 +50,7 @@ myFocusedBorderColor = "#ff0000"
 myFloatBorderColor = "#00ff00"
 myHangoutsAppName = "crx_nckgahadagoaajjgafhacjanaoiihapd"
 myCompton = "compton -b -f --backend glx --blur-background --vsync opengl --glx-use-gpushader4 -D 4 --sw-opti -e 1 -m 0.8 -G"
+--myCompton = "compton -b -f --blur-background --vsync opengl -D 4 --sw-opti -e 1 -m 0.8 -G"
 myLockCommand = "/usr/lib/kde4/libexec/kscreenlocker_greet --immediateLock"
 myInfoCommand = "sm -f white -b black \"\""
 
@@ -224,7 +225,7 @@ main = xmonad $ withUrgencyHookC BorderUrgencyHook { urgencyBorderColor = "#ff00
         , ((myModMask .|. shiftMask  , xK_KP_Enter), spawn myTerminal)
         , ((myModMask                , xK_f   ), withFocused (sendMessage . maximizeRestore))
         , ((myModMask                , xK_w   ), nextScreen)
-        , ((myModMask .|. shiftMask  , xK_w   ), swapNextScreen)
+        , ((myModMask .|. controlMask, xK_w   ), swapNextScreen)
         , ((myModMask                , xK_j   ), focusUp)
         , ((myModMask                , xK_k   ), focusDown)
         , ((myModMask                , xK_Up  ), focusUp)
