@@ -60,11 +60,10 @@ myAddWorkspaces = myImWorkspaces ++ [myMailWS, myScratchpadWS]
 skipWS = myWorkspaces!!9 : myAddWorkspaces
 
 myConsoleScratchpads =
-    [ ((myModMask, xK_F1), "term1", "fish")
-    , ((myModMask, xK_F2), "term2", "fish")
-    , ((myModMask, xK_F3), "term3", "fish")
-    , ((myModMask, xK_F4), "term4", "fish")
-    , ((myModMask, xK_F5), "bash", "bash") -- backup shell
+    [ ((myModMask, xK_F1), "term1", "zsh")
+    , ((myModMask, xK_F2), "term2", "zsh")
+    , ((myModMask, xK_F3), "term3", "zsh")
+    , ((myModMask, xK_F4), "term4", "zsh")
     , ((myModMask, xK_a ), "top", "htop")
     , ((myModMask, xK_s ), "mc", "mc")
     , ((myModMask, xK_d ), "mpd", "ncmpcpp")
@@ -75,6 +74,7 @@ myAppScratchpads =
     [ ((myModMask .|. shiftMask, xK_a), "ksysguard", "ksysguard", "ksysguard")
     , ((myModMask .|. shiftMask, xK_s), "krusader", "krusader", "krusader")
     , ((myModMask .|. shiftMask, xK_d), "kmix", "kmix", "kmix")
+    , ((myModMask, xK_F5), "bash", "urxvt -name bash -e bash", "bash") -- backup shell
     ]
 
 scratchpads = [NS name command (appName =? thisAppName) floatingConf | (_,name,command,thisAppName) <- myAppScratchpads]
@@ -173,11 +173,11 @@ myStartupHook = do
     ewmhDesktopsStartup
     setWMName "LG3D"
     spawn "plasma-desktop"
-    spawn "fishd"
     spawn "urxvtd"
     spawn "pidgin"
     spawn "kupfer --no-splash"
     spawn $ "sleep 2;" ++ myCompton
+    -- spawn "sleep 20; qdbus-qt4 org.kde.kded /kded org.kde.kded.unloadModule ktouchpadenabler; sleep 3; qdbus-qt4 org.kde.kded /kded org.kde.kded.loadModule ktouchpadenabler"
     spawn "thunderbird"
     spawn "chromium"
 
