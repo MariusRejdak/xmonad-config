@@ -1,3 +1,5 @@
+{-# LANGUAGE FlexibleContexts #-}
+
 import XMonad
 import qualified XMonad.StackSet as W
 import XMonad.Actions.CycleWS
@@ -48,7 +50,7 @@ myMailWS            = "~:mail"
 myNormalBorderColor  = "#aaaaaa"
 myFocusedBorderColor = "#ff0000"
 myFloatBorderColor = "#00ff00"
-myHangoutsAppName = "crx_nckgahadagoaajjgafhacjanaoiihapd"
+myHangoutsAppName = "crx_knipolnnllmklapflnccelgolnpehhpl"
 myCompton = "compton -b -f --backend glx --blur-background --vsync opengl --glx-use-gpushader4 -D 4 --sw-opti -e 1 -m 0.8 -G"
 --myCompton = "compton -b -f --blur-background --vsync opengl -D 4 --sw-opti -e 1 -m 0.8 -G"
 myLockCommand = "/usr/lib/kde4/libexec/kscreenlocker_greet --immediateLock"
@@ -64,6 +66,7 @@ myConsoleScratchpads =
     , ((myModMask, xK_F2), "term2", "zsh")
     , ((myModMask, xK_F3), "term3", "zsh")
     , ((myModMask, xK_F4), "term4", "zsh")
+    , ((myModMask, xK_F5), "bash", "bash") -- backup shell
     , ((myModMask, xK_a ), "top", "htop")
     , ((myModMask, xK_s ), "mc", "mc")
     , ((myModMask, xK_d ), "mpd", "ncmpcpp")
@@ -105,9 +108,9 @@ myLayout = onWorkspace (myWorkspaces!!9) videoLayout
         imLayoutP = (imLayoutTemplate "IM Tabbed Pidgin" pidginImProperty Grid)
                 ||| (imLayoutTemplate "IM Tiled B Pidgin" pidginImProperty tiledB)
                 ||| (imLayoutTemplate "IM Tiled R Pidgin" pidginImProperty tiledR)
-        imLayoutH = (imLayoutTemplate "IM Tiled B Hangouts" hangoutsImProperty $ addTabsAlways shrinkText myTheme tiledB)
-                ||| (imLayoutTemplate "IM Tiled R Hangouts" hangoutsImProperty $ addTabsAlways shrinkText myTheme tiledR)
-                ||| (imLayoutTemplate "IM Grid Hangouts" hangoutsImProperty $ addTabsAlways shrinkText myTheme Grid)
+        imLayoutH = (imLayoutTemplate "IM Tiled B Hangouts" hangoutsImProperty tiledB)
+                ||| (imLayoutTemplate "IM Tiled R Hangouts" hangoutsImProperty tiledR)
+                ||| (imLayoutTemplate "IM Grid Hangouts" hangoutsImProperty Grid)
 
         imLayoutTemplate name property layout = named name $ myLayoutMods $ reflectHoriz $ withIM imRatio property layout
         pidginImProperty = Resource "Pidgin" `And` Role "buddy_list"
@@ -179,7 +182,7 @@ myStartupHook = do
     spawn $ "sleep 2;" ++ myCompton
     -- spawn "sleep 20; qdbus-qt4 org.kde.kded /kded org.kde.kded.unloadModule ktouchpadenabler; sleep 3; qdbus-qt4 org.kde.kded /kded org.kde.kded.loadModule ktouchpadenabler"
     spawn "thunderbird"
-    spawn "chromium"
+    --spawn "chromium"
 
 myMouseBindings (XConfig {XMonad.modMask = modm}) = M.fromList $
     [ ((modm              , button1), \w -> focus w >> windows W.shiftMaster >> mouseMoveWindow w >> snapMagicMove (Just 50) (Just 50) w)
@@ -271,8 +274,8 @@ main = xmonad $ withUrgencyHookC BorderUrgencyHook { urgencyBorderColor = "#ff00
         , ("M-<End>", spawn "mpc stop")
         , ("M-]", spawn "mpc next")
         , ("M-[", spawn "mpc prev")
-        , ("M-<Page_Up>", spawn "mpc volume +2")
-        , ("M-<Page_Down>", spawn "mpc volume -2")
+        , ("M-<Page_Up>", spawn "mpc volume +5")
+        , ("M-<Page_Down>", spawn "mpc volume -5")
         , ("M-S-<Page_Up>", spawn "qdbus org.kde.kmix /kmix/KMixWindow/actions/increase_volume org.qtproject.Qt.QAction.trigger")
         , ("M-S-<Page_Down>", spawn "qdbus org.kde.kmix /kmix/KMixWindow/actions/decrease_volume org.qtproject.Qt.QAction.trigger")
         , ("M-S-<End>", spawn "qdbus org.kde.kmix /kmix/KMixWindow/actions/mute org.qtproject.Qt.QAction.trigger")
